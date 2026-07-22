@@ -6,53 +6,55 @@
   <title>Printer AR — FLOW</title>
   <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
   <style>
-    /* Identidade Printer: amarelo + preto + branco */
     :root { --y:#FDB930; --y2:#FFD36B; --ink:#16181D; --ink2:#0E1014; }
     * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
     html,body { margin:0; width:100%; height:100%; overflow:hidden;
       font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; background:var(--ink2); color:#fff; }
     #cam { position:fixed; inset:0; width:100%; height:100%; object-fit:cover; z-index:0; background:#000; }
 
-    /* ---------------- Âncora sobre o QR ---------------- */
+    /* ================= Âncora sobre o QR ================= */
     #anchor { position:fixed; left:0; top:0; z-index:2; width:0; height:0;
       transform:translate(-50%,-50%); opacity:0; transition:opacity .3s ease; pointer-events:none; }
     #anchor.visible { opacity:1; }
     .layer { position:absolute; left:0; top:0; }
     .layer > .anim { position:absolute; left:0; top:0; transform:translate(-50%,-50%); }
 
-    /* ---------------- Micro-animações ---------------- */
+    /* ================= Micro-animações ================= */
     @keyframes fadeUp  { from{opacity:0; transform:translate(-50%,-50%) translateY(30px) scale(.93)} to{opacity:1; transform:translate(-50%,-50%) translateY(0) scale(1)} }
     @keyframes floatY  { 0%,100%{margin-top:0} 50%{margin-top:-8px} }
     @keyframes floatY2 { 0%,100%{margin-top:-6px} 50%{margin-top:6px} }
-    @keyframes glowPls { 0%,100%{box-shadow:0 18px 44px rgba(0,0,0,.6), 0 0 0 2px rgba(253,185,48,.55), 0 0 26px rgba(253,185,48,.30)}
-                         50%    {box-shadow:0 18px 50px rgba(0,0,0,.66),0 0 0 2px rgba(253,185,48,.95), 0 0 46px rgba(253,185,48,.65)} }
+    @keyframes glowPls { 0%,100%{box-shadow:0 18px 44px rgba(0,0,0,.6),0 0 0 2px rgba(253,185,48,.55),0 0 26px rgba(253,185,48,.30)}
+                         50%    {box-shadow:0 18px 50px rgba(0,0,0,.66),0 0 0 2px rgba(253,185,48,.95),0 0 46px rgba(253,185,48,.65)} }
     @keyframes sweep   { from{transform:translateX(-130%)} to{transform:translateX(340%)} }
-    @keyframes drawW   { from{width:0} to{width:78px} }
+    @keyframes drawW   { from{width:0} to{width:86px} }
     @keyframes barFill { from{width:0%} to{width:100%} }
     @keyframes dotP    { 0%,100%{transform:scale(1);opacity:.5} 50%{transform:scale(1.5);opacity:1} }
-    @keyframes wave    { 0%,100%{transform:translateX(0)} 50%{transform:translateX(3px)} }
     @keyframes iconPop { from{opacity:0; transform:scale(.5) rotate(-12deg)} to{opacity:1; transform:scale(1) rotate(0)} }
+    @keyframes secIn   { from{opacity:0; transform:translateY(22px) scale(.96)} to{opacity:1; transform:translateY(0) scale(1)} }
 
     #anchor.visible .anim { animation:fadeUp .7s cubic-bezier(.2,.85,.25,1) backwards; }
-    #anchor.visible #l-brand .anim{animation-delay:.00s} #anchor.visible #l-video .anim{animation-delay:.10s}
-    #anchor.visible #l-mockL .anim{animation-delay:.30s} #anchor.visible #l-mockR .anim{animation-delay:.38s}
-    #anchor.visible #l-feat  .anim{animation-delay:.20s} #anchor.visible #l-pills .anim{animation-delay:.46s}
-    #anchor.visible #l-foot  .anim{animation-delay:.54s}
+    #anchor.visible #l-brand .anim{animation-delay:.00s}
+    #anchor.visible #l-body  .anim{animation-delay:.14s}
+    #anchor.visible #l-foot  .anim{animation-delay:.30s}
 
-    /* ---------------- Marca ---------------- */
-    .brand { width:460px; text-align:center; animation:floatY 5.5s ease-in-out infinite; }
-    .brandrow { display:flex; align-items:center; justify-content:center; gap:16px; }
-    .waves { width:64px; height:52px; flex:0 0 auto; animation:wave 3s ease-in-out infinite; }
-    .waves path { stroke:var(--y); stroke-width:9; fill:none; stroke-linecap:round; }
-    .brand h1 { margin:0; font-size:86px; font-weight:900; letter-spacing:-2px; line-height:.95; color:#fff;
-      text-shadow:0 6px 22px rgba(0,0,0,.85); }
+    /* ================= Marca ================= */
+    .brand { width:470px; text-align:center; animation:floatY 5.5s ease-in-out infinite; }
     .brand .eyebrow { font-size:14px; letter-spacing:4px; text-transform:uppercase; color:var(--y); font-weight:800;
-      text-shadow:0 2px 10px rgba(0,0,0,.9); margin-bottom:6px; }
-    .brand .rule { height:5px; background:var(--y); border-radius:3px; margin:14px auto 12px; animation:drawW .9s .55s cubic-bezier(.2,.8,.2,1) backwards; }
+      text-shadow:0 2px 10px rgba(0,0,0,.9); margin-bottom:8px; }
+    .brandrow { display:flex; align-items:center; justify-content:center; gap:16px; }
+    #logo-img { height:88px; width:auto; display:none; filter:drop-shadow(0 6px 18px rgba(0,0,0,.8)); }
+    .brand h1 { margin:0; font-size:88px; font-weight:900; letter-spacing:-2px; line-height:.95; color:#fff;
+      text-shadow:0 6px 22px rgba(0,0,0,.85); }
+    .brand .rule { height:5px; background:var(--y); border-radius:3px; margin:14px auto 12px;
+      animation:drawW .9s .55s cubic-bezier(.2,.8,.2,1) backwards; }
     .brand .sub { font-size:21px; font-weight:600; line-height:1.35; color:#fff; text-shadow:0 2px 12px rgba(0,0,0,.95); }
 
-    /* ---------------- Vídeo ---------------- */
-    .videobox { width:380px; border-radius:20px; overflow:hidden; position:relative; background:#0d1218;
+    /* ================= Corpo (seções) ================= */
+    .body { width:470px; min-height:330px; position:relative; }
+    .sec { position:absolute; left:50%; top:0; transform:translateX(-50%); width:470px; display:none; }
+    .sec.on { display:block; animation:secIn .5s cubic-bezier(.2,.85,.25,1); }
+
+    .videobox { width:380px; margin:0 auto; border-radius:20px; overflow:hidden; position:relative; background:#0d1218;
       animation:glowPls 3.6s ease-in-out infinite; }
     .videobox video { display:block; width:100%; height:auto; }
     .videobox .sheen { position:absolute; top:0; bottom:0; width:70px; pointer-events:none;
@@ -60,62 +62,88 @@
     .videobox .tag { position:absolute; left:14px; top:14px; font-size:13px; font-weight:900; letter-spacing:1.6px;
       padding:6px 14px; border-radius:999px; background:var(--y); color:var(--ink); text-transform:uppercase; }
 
-    /* ---------------- Mockups ---------------- */
-    .mock { filter:drop-shadow(0 18px 34px rgba(0,0,0,.65)); }
-    .mock img { display:block; width:100%; height:auto; }
-    #m-left  { width:230px; animation:floatY  6s ease-in-out infinite; }
-    #m-right { width:250px; animation:floatY2 7s ease-in-out infinite; }
-
-    /* ---------------- Funcionalidades (carrossel) ---------------- */
-    .feat { width:400px; height:150px; position:relative; }
-    .card { position:absolute; inset:0; border-radius:18px; padding:18px 20px 22px;
-      background:linear-gradient(150deg, rgba(22,24,29,.94), rgba(14,16,20,.86));
-      border:1px solid rgba(253,185,48,.45); backdrop-filter:blur(12px);
-      box-shadow:0 16px 38px rgba(0,0,0,.55);
-      display:flex; gap:16px; align-items:flex-start;
-      opacity:0; transform:translateY(16px) scale(.96); transition:opacity .55s ease, transform .55s cubic-bezier(.2,.8,.2,1); }
-    .card.on { opacity:1; transform:translateY(0) scale(1); }
-    .card .ico { flex:0 0 auto; width:56px; height:56px; display:flex; align-items:center; justify-content:center; }
-    .card.on .ico { animation:iconPop .55s .1s cubic-bezier(.3,1.4,.5,1) backwards; }
-    .card .ico img { width:100%; height:100%; object-fit:contain; }
-    .card h3 { margin:2px 0 6px; font-size:20px; font-weight:900; color:var(--y); line-height:1.15; }
-    .card p  { margin:0; font-size:15px; line-height:1.42; color:#E6EAEF; }
-    .feat .bar { position:absolute; left:20px; right:20px; bottom:10px; height:3px; border-radius:2px; background:rgba(255,255,255,.15); overflow:hidden; }
-    .feat .bar i { display:block; height:100%; background:var(--y); border-radius:2px; }
-    .feat .bar i.run { animation:barFill 4.2s linear; }
-
-    /* ---------------- Selos ---------------- */
-    .pills { display:flex; gap:10px; justify-content:center; width:460px; }
+    .claim { margin:16px auto 0; width:440px; text-align:center; font-size:18px; font-weight:800; line-height:1.35;
+      color:var(--y); text-shadow:0 2px 12px rgba(0,0,0,.95); }
+    .pills { display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin-top:14px; }
     .pill { display:flex; align-items:center; gap:7px; padding:9px 16px; border-radius:999px; font-size:14px; font-weight:800;
-      background:rgba(22,24,29,.8); border:1px solid rgba(253,185,48,.5); backdrop-filter:blur(8px); white-space:nowrap; color:#fff; }
+      background:rgba(22,24,29,.8); border:1px solid rgba(253,185,48,.5); backdrop-filter:blur(8px); white-space:nowrap; }
     .pill .dot { width:8px; height:8px; border-radius:50%; background:var(--y); animation:dotP 1.9s ease-in-out infinite; }
 
-    /* ---------------- Rodapé ---------------- */
+    /* --- card de funcionalidade --- */
+    .fwrap { position:relative; width:460px; margin:0 auto; }
+    .card { border-radius:18px; padding:20px 22px 26px; min-height:186px;
+      background:linear-gradient(150deg, rgba(22,24,29,.95), rgba(14,16,20,.88));
+      border:1px solid rgba(253,185,48,.45); backdrop-filter:blur(12px); box-shadow:0 16px 38px rgba(0,0,0,.55);
+      display:flex; gap:18px; align-items:flex-start; }
+    .card .ico { flex:0 0 auto; width:62px; height:62px; display:flex; align-items:center; justify-content:center;
+      animation:iconPop .55s .06s cubic-bezier(.3,1.4,.5,1) backwards; }
+    .card .ico img,.card .ico svg { width:100%; height:100%; object-fit:contain; }
+    .card .ico svg { stroke:var(--y); fill:none; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; }
+    .card h3 { margin:2px 0 8px; font-size:21px; font-weight:900; color:var(--y); line-height:1.15; }
+    .card p  { margin:0; font-size:15.5px; line-height:1.45; color:#E6EAEF; }
+    .card .num { position:absolute; right:20px; top:-14px; font-size:13px; font-weight:900; color:var(--ink);
+      background:var(--y); padding:5px 13px; border-radius:999px; }
+    .fbar { position:absolute; left:22px; right:22px; bottom:12px; height:3px; border-radius:2px; background:rgba(255,255,255,.15); overflow:hidden; }
+    .fbar i { display:block; height:100%; background:var(--y); border-radius:2px; }
+    .fbar i.run { animation:barFill 4.6s linear; }
+    .dots { display:flex; gap:7px; justify-content:center; margin-top:14px; flex-wrap:wrap; }
+    .dots span { width:8px; height:8px; border-radius:50%; background:rgba(255,255,255,.3); transition:all .3s; }
+    .dots span.on { background:var(--y); width:22px; border-radius:4px; }
+
+    /* --- plataforma --- */
+    .mocks { display:flex; align-items:center; justify-content:center; gap:6px; }
+    .mocks img { filter:drop-shadow(0 18px 34px rgba(0,0,0,.65)); }
+    .mocks img.a { width:240px; animation:floatY 6s ease-in-out infinite; }
+    .mocks img.b { width:225px; animation:floatY2 7s ease-in-out infinite; }
+    .ptext { margin:14px auto 0; width:450px; border-radius:16px; padding:16px 18px;
+      background:linear-gradient(150deg, rgba(22,24,29,.94), rgba(14,16,20,.86));
+      border:1px solid rgba(253,185,48,.4); backdrop-filter:blur(12px); font-size:15px; line-height:1.45; color:#E6EAEF; text-align:center; }
+    .ptext b { color:var(--y); }
+
+    /* --- contato --- */
+    .crow { display:flex; align-items:center; gap:14px; width:450px; margin:0 auto 12px; padding:15px 18px; border-radius:16px;
+      background:linear-gradient(150deg, rgba(22,24,29,.94), rgba(14,16,20,.86));
+      border:1px solid rgba(253,185,48,.4); backdrop-filter:blur(12px); text-align:left; }
+    .crow .ci { width:40px; height:40px; flex:0 0 auto; display:flex; align-items:center; justify-content:center;
+      border-radius:50%; background:var(--y); color:var(--ink); font-size:19px; font-weight:900; }
+    .crow .ct1 { font-size:17px; font-weight:900; color:#fff; }
+    .crow .ct2 { font-size:13.5px; color:#C9D3DC; margin-top:2px; line-height:1.35; }
+
+    /* ================= Rodapé ================= */
     .foot { width:520px; text-align:center; animation:floatY 6.5s ease-in-out infinite; }
     .foot .site { font-size:22px; font-weight:900; color:#fff; text-shadow:0 2px 12px rgba(0,0,0,.95); }
     .foot .site b { color:var(--y); }
-    .foot .ct { margin-top:8px; font-size:14px; color:#DCE3EA; text-shadow:0 2px 10px rgba(0,0,0,.98); line-height:1.65; }
 
-    /* ---------------- UI ---------------- */
+    /* ================= UI fixa (interativa) ================= */
+    #ui { position:fixed; left:0; right:0; bottom:0; z-index:24; display:none;
+      padding:10px 10px calc(10px + env(safe-area-inset-bottom)); background:linear-gradient(180deg,transparent,rgba(0,0,0,.72) 42%); }
+    #actions { display:flex; gap:8px; justify-content:center; margin-bottom:9px; min-height:40px; }
+    .act { border:0; border-radius:999px; padding:10px 18px; font-size:14px; font-weight:800; cursor:pointer;
+      background:rgba(22,24,29,.9); color:#fff; border:1px solid rgba(253,185,48,.55); backdrop-filter:blur(8px); }
+    .act.solid { background:var(--y); color:var(--ink); border-color:var(--y); }
+    .act:active { transform:scale(.95); }
+    #tabs { display:flex; gap:6px; justify-content:center; }
+    .tab { flex:1; max-width:120px; border:0; border-radius:14px; padding:11px 6px; font-size:12.5px; font-weight:800; cursor:pointer;
+      background:rgba(22,24,29,.88); color:#C9D3DC; border:1px solid rgba(255,255,255,.14); backdrop-filter:blur(8px); }
+    .tab.on { background:var(--y); color:var(--ink); border-color:var(--y); }
+    .tab:active { transform:scale(.96); }
+
+    #sound-btn { position:fixed; right:14px; top:14px; z-index:26; display:none; align-items:center; gap:7px;
+      height:44px; padding:0 16px; border:0; border-radius:999px; background:var(--y); color:var(--ink);
+      font-size:13.5px; font-weight:900; cursor:pointer; box-shadow:0 8px 22px rgba(0,0,0,.45); }
+    #sound-btn.muted { animation:dotP 1.9s ease-in-out infinite; }
+    #hint { position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); z-index:20; display:none; align-items:center; gap:10px;
+      padding:14px 22px; border-radius:999px; background:rgba(0,0,0,.68); backdrop-filter:blur(6px); font-size:.92rem; white-space:nowrap; }
+    #hint .d { width:10px; height:10px; border-radius:50%; background:var(--y); animation:dotP 1.3s infinite; }
+
     #start-overlay { position:fixed; inset:0; z-index:30; display:flex; flex-direction:column; align-items:center; justify-content:center;
       text-align:center; padding:24px; background:radial-gradient(120% 120% at 50% 0%, rgba(253,185,48,.20), transparent 60%), var(--ink2); }
-    #ov-waves { width:74px; height:58px; margin-bottom:6px; }
-    #ov-waves path { stroke:var(--y); stroke-width:9; fill:none; stroke-linecap:round; }
     #start-overlay .eb { font-size:12px; letter-spacing:4px; text-transform:uppercase; color:var(--y); font-weight:800; }
     #start-overlay h1 { font-size:3rem; font-weight:900; margin:4px 0 12px; letter-spacing:-2px; }
     #start-overlay p { font-size:1rem; opacity:.82; margin:0 0 34px; max-width:330px; line-height:1.55; }
     #start-btn { border:0; border-radius:999px; padding:17px 44px; font-size:1.05rem; font-weight:900; color:var(--ink);
       background:var(--y); box-shadow:0 10px 30px rgba(253,185,48,.45); cursor:pointer; }
-    #start-btn:active { transform:scale(.97); }
-
-    #sound-btn { position:fixed; right:16px; top:16px; z-index:22; display:none; align-items:center; gap:8px;
-      height:48px; padding:0 18px; border:0; border-radius:999px; background:var(--y); color:var(--ink);
-      font-size:14px; font-weight:900; cursor:pointer; box-shadow:0 8px 22px rgba(0,0,0,.45); pointer-events:auto; }
-    #sound-btn.muted { animation:dotP 1.8s ease-in-out infinite; }
-    #hint { position:fixed; left:50%; bottom:26px; transform:translateX(-50%); z-index:20; display:none; align-items:center; gap:10px;
-      padding:12px 20px; border-radius:999px; background:rgba(0,0,0,.6); backdrop-filter:blur(6px); font-size:.9rem; white-space:nowrap; }
-    #hint .d { width:10px; height:10px; border-radius:50%; background:var(--y); animation:dotP 1.3s infinite; }
-    #dbg { position:fixed; left:8px; bottom:8px; z-index:40; display:none; font:11px/1.4 monospace; background:rgba(0,0,0,.75); padding:6px 9px; border-radius:6px; white-space:pre; }
+    #dbg { position:fixed; left:8px; top:8px; z-index:40; display:none; font:11px/1.4 monospace; background:rgba(0,0,0,.75); padding:6px 9px; border-radius:6px; white-space:pre; }
   </style>
 </head>
 <body>
@@ -126,31 +154,51 @@
     <div class="layer" id="l-brand"><div class="anim"><div class="brand">
       <div class="eyebrow" id="b-eyebrow"></div>
       <div class="brandrow">
-        <svg class="waves" viewBox="0 0 64 52"><path d="M4 12c8-8 16 8 24 0s16 8 24 0"/><path d="M4 26c8-8 16 8 24 0s16 8 24 0"/><path d="M4 40c8-8 16 8 24 0s16 8 24 0"/></svg>
+        <img id="logo-img" alt="" />
         <h1 id="b-name"></h1>
       </div>
       <div class="rule"></div>
       <div class="sub" id="b-sub"></div>
     </div></div></div>
 
-    <div class="layer" id="l-video"><div class="anim"><div class="videobox" id="videobox">
-      <span class="tag">Em ação</span>
-      <video id="pv" loop muted playsinline webkit-playsinline></video>
-      <span class="sheen"></span>
+    <div class="layer" id="l-body"><div class="anim"><div class="body">
+
+      <!-- Visão geral -->
+      <div class="sec on" data-sec="geral">
+        <div class="videobox" id="videobox">
+          <span class="tag">Em ação</span>
+          <video id="pv" loop muted playsinline webkit-playsinline></video>
+          <span class="sheen"></span>
+        </div>
+        <div class="claim" id="s-claim"></div>
+        <div class="pills" id="s-pills"></div>
+      </div>
+
+      <!-- Funcionalidades -->
+      <div class="sec" data-sec="func">
+        <div class="fwrap">
+          <div class="card" id="fcard"></div>
+          <div class="fbar"><i id="fbar"></i></div>
+        </div>
+        <div class="dots" id="fdots"></div>
+      </div>
+
+      <!-- Plataforma -->
+      <div class="sec" data-sec="plataforma">
+        <div class="mocks">
+          <img class="a" id="mk1" alt="" />
+          <img class="b" id="mk2" alt="" />
+        </div>
+        <div class="ptext" id="s-ptext"></div>
+      </div>
+
+      <!-- Contato -->
+      <div class="sec" data-sec="contato"><div id="s-contato"></div></div>
+
     </div></div></div>
-
-    <div class="layer" id="l-mockL"><div class="anim"><div class="mock" id="m-left"><img id="mi-l" alt="" /></div></div></div>
-    <div class="layer" id="l-mockR"><div class="anim"><div class="mock" id="m-right"><img id="mi-r" alt="" /></div></div></div>
-
-    <div class="layer" id="l-feat"><div class="anim"><div class="feat" id="feat">
-      <div class="bar"><i id="bar"></i></div>
-    </div></div></div>
-
-    <div class="layer" id="l-pills"><div class="anim"><div class="pills" id="pills"></div></div></div>
 
     <div class="layer" id="l-foot"><div class="anim"><div class="foot">
       <div class="site" id="f-site"></div>
-      <div class="ct" id="f-ct"></div>
     </div></div></div>
   </div>
 
@@ -158,8 +206,12 @@
   <div id="hint"><span class="d"></span> Aponte a câmera para o QR code</div>
   <div id="dbg"></div>
 
+  <div id="ui">
+    <div id="actions"></div>
+    <div id="tabs"></div>
+  </div>
+
   <div id="start-overlay">
-    <svg id="ov-waves" viewBox="0 0 64 52"><path d="M4 12c8-8 16 8 24 0s16 8 24 0"/><path d="M4 26c8-8 16 8 24 0s16 8 24 0"/><path d="M4 40c8-8 16 8 24 0s16 8 24 0"/></svg>
     <div class="eb" id="ov-eyebrow">EOS Suite</div>
     <h1 id="ov-title">FLOW</h1>
     <p>Toque para abrir a câmera, depois aponte para o QR code do produto.</p>
@@ -168,104 +220,166 @@
 
   <script>
   /* ==========================================================================
-     Dados extraídos do PDF "FLOW — Catálogo de Produtos V2026.1 — Printer"
+     Dados do PDF "FLOW — Catálogo de Produtos V2026.1 — Grupo Printer do Brasil"
      ========================================================================== */
+  const SVG = {
+    doc:`<svg viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h4"/></svg>`,
+    userlock:`<svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 20a5.5 5.5 0 0 1 8.4-4.7"/><rect x="14" y="14" width="7.5" height="6.5" rx="1.4"/><path d="M15.9 14v-1.7a1.9 1.9 0 0 1 3.8 0V14"/></svg>`,
+    cloud:`<svg viewBox="0 0 24 24"><path d="M6.5 18a3.8 3.8 0 0 1-.3-7.6 5.2 5.2 0 0 1 10 .9A3.4 3.4 0 0 1 18 18z"/><path d="M9.5 14.3l1.8 1.8 3.4-3.6"/></svg>`,
+    template:`<svg viewBox="0 0 24 24"><rect x="3" y="3.5" width="18" height="17" rx="2.2"/><path d="M3 9h18M9 9v11.5"/></svg>`,
+    sliders:`<svg viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2.1"/><circle cx="10" cy="17" r="2.1"/></svg>`,
+    pen:`<svg viewBox="0 0 24 24"><path d="M12.5 4.5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-6"/><path d="M17.6 3.6a1.9 1.9 0 0 1 2.8 2.7L14 12.7l-3.4.7.7-3.4z"/></svg>`
+  };
+
   const PRODUCTS = {
     'flow': {
       eyebrow:'Grupo Printer · EOS Suite',
       name:'FLOW',
+      logo:'./assets/logo-flow.svg',   // opcional: logo oficial (se existir)
       sub:'Tramitação de Processos com Assinatura Digital',
+      claim:'Conecte processos, reduza burocracia e transforme a gestão pública em um fluxo digital contínuo.',
       video:'./assets/flow.mp4',
       mockL:'./assets/mock-monitor.png',
       mockR:'./assets/mock-devices.png',
       site:'printerdobrasil.com.br',
-      contacts:'Curitiba (41) 3387-8613 &nbsp;&nbsp;·&nbsp;&nbsp; Foz do Iguaçu (45) 3026-0363',
       pills:['Feito no Brasil','Setor Público','ICP-Brasil'],
+      plataforma:'Opera de forma integrada dentro da plataforma <b>EOS SUITE</b>, com troca de informações via <b>APIs sob demanda</b>. Aplicação <b>multidevice</b>, com dados em <b>cloud no território brasileiro</b> e backups diários.',
+      contatos:[
+        {i:'🌐', t:'printerdobrasil.com.br', s:'Site oficial e canais de atendimento', href:'https://printerdobrasil.com.br'},
+        {i:'📞', t:'Curitiba — (41) 3387-8613', s:'Rua Desembargador Arthur Leme, 327 — Bacacheri', href:'tel:+554133878613'},
+        {i:'📞', t:'Foz do Iguaçu — (45) 3026-0363', s:'Av. José Maria de Brito, 1763 — Jardim das Nações', href:'tel:+554530260363'},
+        {i:'🇧🇷', t:'Desenvolvido no Brasil', s:'Produto com foco no atendimento ao setor público', href:''}
+      ],
       features:[
-        {ic:'agil',       t:'Gestão Ágil e Digital',            d:'Organiza solicitações de cidadãos, servidores e empresas, com tramitação paralela ou linear.'},
-        {ic:'monitor',    t:'Monitoramento em Tempo Real',      d:'Acompanhe cada etapa com atualizações instantâneas e visibilidade completa dos fluxos.'},
-        {ic:'assinatura', t:'Assinaturas ICP-Brasil',           d:'Níveis Avançada e Qualificada, com validade jurídica e autenticação reforçada.'},
-        {ic:'seguranca',  t:'Visibilidade e Segurança',         d:'Defina quem visualiza cada processo ou tarefa conforme o perfil do usuário.'},
-        {ic:'paperless',  t:'Paperless e Eficiência',           d:'Criação de documentos direto na aplicação, sem impressão — economia e sustentabilidade.'},
-        {ic:'conect',     t:'Conectividade Sem Limites',        d:'Integrado ao EOS SUITE, com APIs sob demanda e acesso multidevice.'}
+        {ic:'img:agil',       t:'Gestão Ágil e Digital',        d:'Moderniza a administração pública ao organizar solicitações e requerimentos de cidadãos, servidores e empresas, com tramitação paralela ou linear.'},
+        {ic:'img:monitor',    t:'Monitoramento em Tempo Real',  d:'Acompanhe cada etapa com atualizações instantâneas, garantindo agilidade, transparência e visibilidade completa dos fluxos operacionais.'},
+        {ic:'img:seguranca',  t:'Visibilidade e Segurança',     d:'Gerencie o acesso às informações definindo quem pode visualizar cada processo ou tarefa conforme o perfil do usuário.'},
+        {ic:'img:assinatura', t:'Assinaturas Eletrônicas',      d:'Dois níveis com validade jurídica: Avançada, com autenticação reforçada, e Qualificada, com certificado digital ICP-Brasil.'},
+        {ic:'img:paperless',  t:'Paperless e Eficiência',       d:'Reduz o uso de papel permitindo a criação direta de documentos na aplicação, sem necessidade de impressão.'},
+        {ic:'img:conect',     t:'Conectividade Sem Limites',    d:'Integrado ao EOS SUITE, permite troca de informações com outros softwares via APIs desenvolvidas sob demanda.'},
+        {ic:'svg:pen',        t:'Criação Digital Nativa',       d:'Crie documentos diretamente na plataforma, aplique modelos padronizados e inicie fluxos de aprovação com poucos cliques.'},
+        {ic:'svg:doc',        t:'Documentação Unificada',       d:'Geração de um PDF único consolidando todas as interações do fluxo, incluindo o protocolo de assinatura.'},
+        {ic:'svg:userlock',   t:'Acesso Personalizado',         d:'Configuração de acesso baseada na hierarquia organizacional, com permissões alinhadas a cada unidade.'},
+        {ic:'svg:cloud',      t:'Armazenamento Seguro',         d:'Documentos armazenados em cloud no território brasileiro, com backups diários e disponibilidade contínua.'},
+        {ic:'svg:template',   t:'Modelos de Tarefas',           d:'Criação de tarefas padrão ou layouts personalizados, adaptando-se a diferentes demandas.'},
+        {ic:'svg:sliders',    t:'Customização Facilitada',      d:'Fluxos personalizados com campos, etapas e regras sob medida, além de tramitação direta e dinâmica.'}
       ]
-    },
-    'demo': {
-      eyebrow:'Printer', name:'DEMO', sub:'Experiência de teste', video:'./assets/video.mp4',
-      mockL:'', mockR:'', site:'printerdobrasil.com.br', contacts:'', pills:['Teste'],
-      features:[{ic:'agil', t:'Demonstração', d:'Troque pelos dados reais do produto.'}]
     }
   };
 
-  const qs   = new URLSearchParams(location.search);
-  const cfg  = PRODUCTS[qs.get('p')] || PRODUCTS['flow'];
-  const DEBUG= qs.get('debug')==='1';
+  const qs=new URLSearchParams(location.search);
+  const cfg=PRODUCTS[qs.get('p')]||PRODUCTS['flow'];
+  const DEBUG=qs.get('debug')==='1';
 
-  /* Posições (px) relativas ao centro do QR. QR ocupa ~ -110..+110 */
-  const POS = {
-    'l-brand':[0,-600], 'l-video':[0,-372], 'l-feat':[0,-178],
-    'l-mockL':[-330,-300], 'l-mockR':[335,-330],
-    'l-pills':[0,170], 'l-foot':[0,258]
-  };
-  const REF_QR = 220;
-  for (const [id,[x,y]] of Object.entries(POS)) { const e=document.getElementById(id); e.style.left=x+'px'; e.style.top=y+'px'; }
+  const POS={ 'l-brand':[0,-600], 'l-body':[0,-300], 'l-foot':[0,200] };
+  const REF_QR=220;
+  for(const [id,[x,y]] of Object.entries(POS)){ const e=document.getElementById(id); e.style.left=x+'px'; e.style.top=y+'px'; }
 
-  /* Conteúdo */
-  const pv = document.getElementById('pv');
-  document.getElementById('b-eyebrow').textContent = cfg.eyebrow;
-  document.getElementById('b-name').textContent    = cfg.name;
-  document.getElementById('b-sub').textContent     = cfg.sub;
-  document.getElementById('ov-title').textContent  = cfg.name;
-  document.getElementById('ov-eyebrow').textContent= cfg.eyebrow;
-  document.getElementById('f-site').innerHTML      = cfg.site.replace('printer','<b>printer</b>');
-  document.getElementById('f-ct').innerHTML        = cfg.contacts||'';
-  document.getElementById('pills').innerHTML = (cfg.pills||[]).map(p=>`<div class="pill"><span class="dot"></span>${p}</div>`).join('');
+  /* ---------- Preenche ---------- */
+  const pv=document.getElementById('pv');
+  document.getElementById('b-eyebrow').textContent=cfg.eyebrow;
+  document.getElementById('b-name').textContent=cfg.name;
+  document.getElementById('b-sub').textContent=cfg.sub;
+  document.getElementById('s-claim').textContent=cfg.claim||'';
+  document.getElementById('ov-title').textContent=cfg.name;
+  document.getElementById('ov-eyebrow').textContent=cfg.eyebrow;
+  document.getElementById('f-site').innerHTML=cfg.site.replace('printer','<b>printer</b>');
+  document.getElementById('s-pills').innerHTML=(cfg.pills||[]).map(p=>`<div class="pill"><span class="dot"></span>${p}</div>`).join('');
+  document.getElementById('s-ptext').innerHTML=cfg.plataforma||'';
+  document.getElementById('s-contato').innerHTML=(cfg.contatos||[]).map(c=>
+    `<div class="crow"><div class="ci">${c.i}</div><div><div class="ct1">${c.t}</div><div class="ct2">${c.s}</div></div></div>`).join('');
 
-  bindImg('mi-l', cfg.mockL, 'l-mockL');
-  bindImg('mi-r', cfg.mockR, 'l-mockR');
-  function bindImg(id, src, layer){
-    const el=document.getElementById(id);
-    if(!src){ document.getElementById(layer).style.display='none'; return; }
-    el.onerror=()=>document.getElementById(layer).style.display='none';
-    el.src=src;
-  }
+  // logo oficial (se o arquivo existir); senão fica só o texto
+  const logoImg=document.getElementById('logo-img');
+  if(cfg.logo){ logoImg.onload=()=>logoImg.style.display='block'; logoImg.onerror=()=>logoImg.style.display='none'; logoImg.src=cfg.logo; }
 
-  pv.addEventListener('error', ()=>{ document.getElementById('videobox').style.display='none'; });
+  document.getElementById('mk1').src=cfg.mockL||'';
+  document.getElementById('mk2').src=cfg.mockR||'';
+
+  pv.addEventListener('error',()=>{ document.getElementById('videobox').style.display='none'; });
   if(cfg.video){ pv.src=cfg.video; pv.load(); } else document.getElementById('videobox').style.display='none';
 
-  /* Carrossel de funcionalidades */
-  const featBox=document.getElementById('feat'), bar=document.getElementById('bar');
-  const cards = cfg.features.map((f,i)=>{
-    const el=document.createElement('div');
-    el.className='card'+(i===0?' on':'');
-    el.innerHTML=`<div class="ico"><img src="./assets/icons/${f.ic}.png" alt=""></div>
-                  <div><h3>${f.t}</h3><p>${f.d}</p></div>`;
-    featBox.insertBefore(el, featBox.firstChild);
-    return el;
-  });
-  let fi=0, cycling=false;
-  function startCycle(){
-    if(cycling || cards.length<2) return; cycling=true; bar.classList.add('run');
-    setInterval(()=>{
-      cards[fi].classList.remove('on'); fi=(fi+1)%cards.length; cards[fi].classList.add('on');
-      bar.classList.remove('run'); void bar.offsetWidth; bar.classList.add('run');
-    }, 4200);
+  /* ---------- Funcionalidades: card + dots ---------- */
+  const F=cfg.features, fcard=document.getElementById('fcard'), fbar=document.getElementById('fbar'), fdots=document.getElementById('fdots');
+  fdots.innerHTML=F.map((_,i)=>`<span${i===0?' class="on"':''}></span>`).join('');
+  let fi=0, timer=null, auto=true;
+  function icoHTML(ic){
+    if(ic.startsWith('img:')) return `<img src="./assets/icons/${ic.slice(4)}.png" alt="">`;
+    return SVG[ic.slice(4)]||'';
+  }
+  function renderF(){
+    const f=F[fi];
+    fcard.innerHTML=`<div class="num">${fi+1}/${F.length}</div>
+      <div class="ico">${icoHTML(f.ic)}</div><div><h3>${f.t}</h3><p>${f.d}</p></div>`;
+    [...fdots.children].forEach((d,i)=>d.classList.toggle('on',i===fi));
+    fbar.classList.remove('run'); void fbar.offsetWidth; if(auto) fbar.classList.add('run');
+  }
+  function goF(n){ fi=(n+F.length)%F.length; renderF(); if(auto) restart(); }
+  function restart(){ clearInterval(timer); timer=setInterval(()=>{ fi=(fi+1)%F.length; renderF(); },4600); }
+  function setAuto(on){ auto=on; clearInterval(timer); if(on) restart(); else fbar.classList.remove('run'); renderActions(); }
+  renderF();
+
+  /* ---------- Navegação por seções ---------- */
+  const SECTIONS=[
+    {k:'geral',      label:'Visão Geral'},
+    {k:'func',       label:'Funções'},
+    {k:'plataforma', label:'Plataforma'},
+    {k:'contato',    label:'Contato'}
+  ];
+  let cur='geral';
+  const tabsEl=document.getElementById('tabs'), actsEl=document.getElementById('actions');
+  tabsEl.innerHTML=SECTIONS.map(s=>`<button class="tab${s.k===cur?' on':''}" data-k="${s.k}">${s.label}</button>`).join('');
+  tabsEl.addEventListener('click',e=>{ const b=e.target.closest('.tab'); if(b) show(b.dataset.k); });
+
+  function show(k){
+    cur=k;
+    document.querySelectorAll('.sec').forEach(s=>s.classList.toggle('on', s.dataset.sec===k));
+    [...tabsEl.children].forEach(b=>b.classList.toggle('on', b.dataset.k===k));
+    if(k==='func'){ if(auto) restart(); } else clearInterval(timer);
+    renderActions();
   }
 
-  /* Câmera + detecção do QR */
+  function renderActions(){
+    let h='';
+    if(cur==='func'){
+      h=`<button class="act" data-a="prev">‹ Anterior</button>
+         <button class="act solid" data-a="auto">${auto?'⏸ Pausar':'▶ Auto'}</button>
+         <button class="act" data-a="next">Próxima ›</button>`;
+    } else if(cur==='contato'){
+      h=(cfg.contatos||[]).filter(c=>c.href).map((c,i)=>
+         `<button class="act${i===0?' solid':''}" data-a="link" data-h="${c.href}">${c.i} ${c.t.split('—')[0].trim()}</button>`).join('');
+    } else if(cur==='geral'){
+      h=`<button class="act solid" data-a="go" data-k="func">Ver as ${F.length} funcionalidades ›</button>`;
+    } else if(cur==='plataforma'){
+      h=`<button class="act solid" data-a="go" data-k="contato">Falar com a Printer ›</button>`;
+    }
+    actsEl.innerHTML=h;
+  }
+  actsEl.addEventListener('click',e=>{
+    const b=e.target.closest('.act'); if(!b) return;
+    const a=b.dataset.a;
+    if(a==='prev') goF(fi-1);
+    else if(a==='next') goF(fi+1);
+    else if(a==='auto') setAuto(!auto);
+    else if(a==='go') show(b.dataset.k);
+    else if(a==='link') window.open(b.dataset.h,'_blank');
+  });
+  renderActions();
+
+  /* ---------- Câmera + detecção do QR ---------- */
   const cam=document.getElementById('cam'), anchor=document.getElementById('anchor'),
         startOv=document.getElementById('start-overlay'), startBtn=document.getElementById('start-btn'),
-        soundBtn=document.getElementById('sound-btn'), hint=document.getElementById('hint'), dbg=document.getElementById('dbg');
+        soundBtn=document.getElementById('sound-btn'), hint=document.getElementById('hint'),
+        ui=document.getElementById('ui'), dbg=document.getElementById('dbg');
   const canvas=document.createElement('canvas'), ctx=canvas.getContext('2d',{willReadFrequently:true});
-  let running=false, lastSeen=0, sm={x:0,y:0,size:REF_QR,ang:0,has:false};
+  let running=false,lastSeen=0,sm={x:0,y:0,size:REF_QR,ang:0,has:false};
 
-  startBtn.addEventListener('click', async ()=>{
-    try{
-      const st=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});
-      cam.srcObject=st; await cam.play();
-    }catch(e){ alert('Não foi possível acessar a câmera. Verifique as permissões.'); return; }
+  startBtn.addEventListener('click',async()=>{
+    try{ const st=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});
+      cam.srcObject=st; await cam.play(); }
+    catch(e){ alert('Não foi possível acessar a câmera. Verifique as permissões.'); return; }
     try{ await pv.play(); }catch(e){}
-    startOv.style.display='none'; soundBtn.style.display='flex'; hint.style.display='flex';
+    startOv.style.display='none'; soundBtn.style.display='flex'; hint.style.display='flex'; ui.style.display='block';
     if(DEBUG) dbg.style.display='block';
     running=true; requestAnimationFrame(loop);
   });
@@ -291,22 +405,22 @@
         sm.x=lerp(sm.x,c.x,k); sm.y=lerp(sm.y,c.y,k); sm.size=lerp(sm.size,size,k); sm.ang=lerpA(sm.ang,ang,k); sm.has=true;
         anchor.style.left=sm.x+'px'; anchor.style.top=sm.y+'px';
         anchor.style.transform=`translate(-50%,-50%) rotate(${sm.ang}deg) scale(${sm.size/REF_QR})`;
-        if(!anchor.classList.contains('visible')){ anchor.classList.add('visible'); startCycle(); }
+        if(!anchor.classList.contains('visible')) anchor.classList.add('visible');
         if(pv.paused) pv.play().catch(()=>{});
         hint.style.display='none';
       } else if(performance.now()-lastSeen>400){
         anchor.classList.remove('visible'); sm.has=false; hint.style.display='flex';
       }
-      if(DEBUG) dbg.textContent=`QR:${code?'SIM':'nao'} size:${sm.size.toFixed(0)}\nvideo:${pv.paused?'PAUSADO':'tocando'} rs:${pv.readyState}\nerr:${pv.error?pv.error.code:'-'} ${(pv.currentSrc||'').split('/').pop()}\ncam:${vw}x${vh}`;
+      if(DEBUG) dbg.textContent=`QR:${code?'SIM':'nao'} sz:${sm.size.toFixed(0)}\nvid:${pv.paused?'PAUSADO':'ok'} rs:${pv.readyState}\nsec:${cur} f:${fi+1}/${F.length}`;
     }
     requestAnimationFrame(loop);
   }
   const lerp=(a,b,t)=>a+(b-a)*t, lerpA=(a,b,t)=>{let d=((b-a+540)%360)-180; return a+d*t;};
 
-  soundBtn.addEventListener('click', ()=>{
+  soundBtn.addEventListener('click',()=>{
     pv.muted=!pv.muted;
-    soundBtn.textContent = pv.muted ? '🔇 Ativar som' : '🔊 Som ligado';
-    soundBtn.classList.toggle('muted', pv.muted);
+    soundBtn.textContent=pv.muted?'🔇 Ativar som':'🔊 Som ligado';
+    soundBtn.classList.toggle('muted',pv.muted);
     if(!pv.muted){ pv.volume=1; pv.play().catch(()=>{}); }
   });
   </script>
