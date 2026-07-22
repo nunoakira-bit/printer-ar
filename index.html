@@ -171,7 +171,10 @@
 
     // preenche conteúdo
     const pv = document.getElementById('pv');
-    pv.src = cfg.video;
+    // esconde o player se não houver vídeo válido (evita bloco preto)
+    pv.addEventListener('error', () => { document.getElementById('pv-wrap').style.display = 'none'; });
+    if (cfg.video) { pv.src = cfg.video; }
+    else { document.getElementById('pv-wrap').style.display = 'none'; }
     setImg('m1', cfg.image1, 'mock-left');
     setImg('m2', cfg.image2, 'mock-right');
     document.getElementById('title').textContent = cfg.title;
