@@ -6,184 +6,311 @@
   <title>Printer AR</title>
   <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
   <style>
-    :root { --accent: #00a0e3; --dark: #0b0f14; }
-    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-    html, body { margin: 0; width: 100%; height: 100%; overflow: hidden;
-      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--dark); color: #fff; }
+    :root { --accent:#00a0e3; --accent2:#3ddc97; --dark:#0b0f14; }
+    * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+    html,body { margin:0; width:100%; height:100%; overflow:hidden;
+      font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; background:var(--dark); color:#fff; }
 
-    #cam { position: fixed; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0; background: #000; }
+    #cam { position:fixed; inset:0; width:100%; height:100%; object-fit:cover; z-index:0; background:#000; }
 
-    /* Âncora: posicionada sobre o QR code detectado, segue posição/tamanho/rotação */
-    #anchor {
-      position: fixed; left: 0; top: 0; z-index: 2;
-      width: 0; height: 0;
-      transform: translate(-50%, -50%);
-      opacity: 0; transition: opacity .25s ease;
-      pointer-events: none;
-    }
-    #anchor.visible { opacity: 1; }
-    .layer { position: absolute; left: 0; top: 0; transform: translate(-50%, -50%); }
+    /* ---------- Âncora sobre o QR ---------- */
+    #anchor { position:fixed; left:0; top:0; z-index:2; width:0; height:0;
+      transform:translate(-50%,-50%); opacity:0; transition:opacity .3s ease; pointer-events:none; }
+    #anchor.visible { opacity:1; }
+    .layer { position:absolute; left:0; top:0; }
+    .layer > .anim { position:absolute; left:0; top:0; transform:translate(-50%,-50%); }
 
-    /* base de referência: composição desenhada para um QR de 220px; escala junto */
-    #pv-wrap { width: 300px; border-radius: 14px; overflow: hidden;
-      box-shadow: 0 16px 40px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.10); transform: translate(-50%, -50%) translateY(-260px); }
-    #pv { display: block; width: 100%; height: auto; background: #111; }
+    /* ---------- Micro-animações ---------- */
+    @keyframes fadeUp   { from{ opacity:0; transform:translate(-50%,-50%) translateY(26px) scale(.94);} to{ opacity:1; transform:translate(-50%,-50%) translateY(0) scale(1);} }
+    @keyframes floatY   { 0%,100%{ margin-top:0 } 50%{ margin-top:-7px } }
+    @keyframes glowPulse{ 0%,100%{ box-shadow:0 16px 40px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.10), 0 0 22px rgba(0,160,227,.35) }
+                          50%    { box-shadow:0 16px 44px rgba(0,0,0,.6),  0 0 0 1px rgba(0,160,227,.45), 0 0 40px rgba(0,160,227,.6) } }
+    @keyframes drawLine { from{ width:0 } to{ width:64px } }
+    @keyframes dotPulse { 0%,100%{ transform:scale(1); opacity:.45 } 50%{ transform:scale(1.5); opacity:1 } }
+    @keyframes sweep    { from{ transform:translateX(-120%) } to{ transform:translateX(320%) } }
+    @keyframes barFill  { from{ width:0% } to{ width:100% } }
 
-    .mock { width: 130px; border-radius: 12px; overflow: hidden; box-shadow: 0 12px 30px rgba(0,0,0,.5); background: rgba(255,255,255,.06); }
-    .mock img { display: block; width: 100%; height: auto; }
-    #mock-left  { transform: translate(-50%, -50%) translate(-210px, -70px) rotate(-6deg); }
-    #mock-right { transform: translate(-50%, -50%) translate( 210px, -70px) rotate(6deg); }
+    #anchor.visible .anim { animation:fadeUp .65s cubic-bezier(.2,.85,.25,1) backwards; }
+    #anchor.visible #l-title  .anim { animation-delay:.00s }
+    #anchor.visible #l-video  .anim { animation-delay:.12s }
+    #anchor.visible #l-feat   .anim { animation-delay:.24s }
+    #anchor.visible #l-stats  .anim { animation-delay:.34s }
+    #anchor.visible #l-footer .anim { animation-delay:.44s }
 
-    #title { width: 360px; text-align: center; font-size: 30px; font-weight: 800; text-shadow: 0 2px 12px rgba(0,0,0,.7);
-      transform: translate(-50%, -50%) translateY(-410px); }
-    #title::after { content: ""; display: block; width: 60px; height: 3px; margin: 12px auto 0; background: var(--accent); border-radius: 2px; }
+    /* ---------- Bloco: título ---------- */
+    #l-title { }
+    .brand { width:420px; text-align:center; animation:floatY 5s ease-in-out infinite; }
+    .brand .eyebrow { font-size:15px; letter-spacing:3px; text-transform:uppercase; color:var(--accent);
+      font-weight:700; text-shadow:0 2px 10px rgba(0,0,0,.8); }
+    .brand h1 { margin:4px 0 0; font-size:76px; font-weight:900; letter-spacing:-1px; line-height:1;
+      background:linear-gradient(180deg,#fff 40%,#9fd8f2); -webkit-background-clip:text; background-clip:text; color:transparent;
+      filter:drop-shadow(0 4px 16px rgba(0,0,0,.75)); }
+    .brand .rule { height:4px; background:linear-gradient(90deg,var(--accent),var(--accent2)); border-radius:3px;
+      margin:12px auto 10px; animation:drawLine .8s .5s cubic-bezier(.2,.8,.2,1) backwards; }
+    .brand .sub { font-size:19px; line-height:1.4; color:#dff1fb; text-shadow:0 2px 10px rgba(0,0,0,.85); }
 
-    #desc { width: 340px; text-align: center; font-size: 19px; line-height: 1.45; color: #dff1fb; text-shadow: 0 2px 10px rgba(0,0,0,.8);
-      transform: translate(-50%, -50%) translateY(230px); }
+    /* ---------- Bloco: vídeo ---------- */
+    .videobox { width:360px; border-radius:18px; overflow:hidden; position:relative;
+      animation:glowPulse 3.4s ease-in-out infinite; background:#0d1218; }
+    .videobox video { display:block; width:100%; height:auto; }
+    .videobox .sheen { position:absolute; top:0; bottom:0; width:60px; pointer-events:none;
+      background:linear-gradient(100deg,transparent,rgba(255,255,255,.22),transparent);
+      animation:sweep 4.5s ease-in-out infinite 1s; }
+    .videobox .tag { position:absolute; left:12px; top:12px; font-size:13px; font-weight:700; letter-spacing:1.5px;
+      padding:5px 12px; border-radius:999px; background:rgba(0,160,227,.9); text-transform:uppercase; }
 
-    /* Start / UI */
-    #start-overlay { position: fixed; inset: 0; z-index: 30; display: flex; flex-direction: column; align-items: center; justify-content: center;
-      text-align: center; padding: 24px; background: radial-gradient(120% 120% at 50% 0%, rgba(0,160,227,.20), transparent 60%), var(--dark); }
-    #start-overlay h1 { font-size: 1.6rem; margin: 0 0 8px; }
-    #start-overlay p { font-size: 1rem; opacity: .8; margin: 0 0 32px; max-width: 320px; line-height: 1.5; }
-    #start-btn { border: 0; border-radius: 999px; padding: 16px 40px; font-size: 1.05rem; font-weight: 700; color: #fff;
-      background: var(--accent); box-shadow: 0 8px 24px rgba(0,160,227,.4); cursor: pointer; }
-    #start-btn:active { transform: scale(.97); }
+    /* ---------- Bloco: funcionalidades (carrossel) ---------- */
+    .feat { width:380px; height:132px; position:relative; }
+    .card { position:absolute; inset:0; border-radius:16px; padding:16px 18px;
+      background:linear-gradient(145deg, rgba(14,22,30,.90), rgba(10,16,22,.78));
+      border:1px solid rgba(0,160,227,.35); backdrop-filter:blur(10px);
+      box-shadow:0 14px 34px rgba(0,0,0,.5);
+      display:flex; gap:14px; align-items:flex-start;
+      opacity:0; transform:translateY(14px) scale(.97); transition:opacity .5s ease, transform .5s cubic-bezier(.2,.8,.2,1); }
+    .card.on { opacity:1; transform:translateY(0) scale(1); }
+    .card .ico { font-size:30px; line-height:1; flex:0 0 auto; margin-top:2px; }
+    .card h3 { margin:0 0 5px; font-size:19px; font-weight:800; color:#fff; }
+    .card p  { margin:0; font-size:14.5px; line-height:1.4; color:#b9d7e8; }
+    .feat .bar { position:absolute; left:16px; right:16px; bottom:9px; height:3px; border-radius:2px; background:rgba(255,255,255,.14); overflow:hidden; }
+    .feat .bar i { display:block; height:100%; background:linear-gradient(90deg,var(--accent),var(--accent2)); border-radius:2px; }
+    .feat .bar i.run { animation:barFill 4s linear; }
 
-    #sound-btn { position: fixed; right: 16px; top: 16px; z-index: 20; display: none; width: 48px; height: 48px; border: 0;
-      border-radius: 50%; background: rgba(0,0,0,.5); backdrop-filter: blur(6px); color: #fff; font-size: 1.2rem; cursor: pointer; }
-    #hint { position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%); z-index: 20; display: none; align-items: center; gap: 10px;
-      padding: 12px 20px; border-radius: 999px; background: rgba(0,0,0,.55); backdrop-filter: blur(6px); font-size: .9rem; white-space: nowrap; }
-    #hint .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); animation: pulse 1.2s infinite; }
-    @keyframes pulse { 0%,100% { opacity: .3; } 50% { opacity: 1; } }
+    /* ---------- Bloco: selos ---------- */
+    .stats { display:flex; gap:10px; justify-content:center; width:420px; }
+    .pill { display:flex; align-items:center; gap:7px; padding:8px 14px; border-radius:999px; font-size:13.5px; font-weight:700;
+      background:rgba(10,16,22,.72); border:1px solid rgba(255,255,255,.16); backdrop-filter:blur(8px); white-space:nowrap; }
+    .pill .dot { width:8px; height:8px; border-radius:50%; background:var(--accent2); animation:dotPulse 1.8s ease-in-out infinite; }
+
+    /* ---------- Bloco: rodapé ---------- */
+    .foot { width:440px; text-align:center; animation:floatY 6s ease-in-out infinite; }
+    .foot .site { font-size:20px; font-weight:800; color:#fff; text-shadow:0 2px 10px rgba(0,0,0,.85); }
+    .foot .site span { color:var(--accent); }
+    .foot .ct { margin-top:7px; font-size:13.5px; color:#cfe6f4; text-shadow:0 2px 8px rgba(0,0,0,.9); line-height:1.6; }
+
+    /* ---------- UI ---------- */
+    #start-overlay { position:fixed; inset:0; z-index:30; display:flex; flex-direction:column; align-items:center; justify-content:center;
+      text-align:center; padding:24px; background:radial-gradient(120% 120% at 50% 0%, rgba(0,160,227,.22), transparent 60%), var(--dark); }
+    #start-overlay .eb { font-size:13px; letter-spacing:3px; text-transform:uppercase; color:var(--accent); font-weight:700; }
+    #start-overlay h1 { font-size:2.6rem; font-weight:900; margin:6px 0 10px; letter-spacing:-1px; }
+    #start-overlay p { font-size:1rem; opacity:.82; margin:0 0 34px; max-width:330px; line-height:1.55; }
+    #start-btn { border:0; border-radius:999px; padding:16px 42px; font-size:1.05rem; font-weight:800; color:#fff;
+      background:linear-gradient(135deg,var(--accent),#0079b8); box-shadow:0 10px 30px rgba(0,160,227,.45); cursor:pointer; }
+    #start-btn:active { transform:scale(.97); }
+    #sound-btn { position:fixed; right:16px; top:16px; z-index:20; display:none; width:48px; height:48px; border:0;
+      border-radius:50%; background:rgba(0,0,0,.5); backdrop-filter:blur(6px); color:#fff; font-size:1.2rem; cursor:pointer; }
+    #hint { position:fixed; left:50%; bottom:26px; transform:translateX(-50%); z-index:20; display:none; align-items:center; gap:10px;
+      padding:12px 20px; border-radius:999px; background:rgba(0,0,0,.55); backdrop-filter:blur(6px); font-size:.9rem; white-space:nowrap; }
+    #hint .d { width:10px; height:10px; border-radius:50%; background:var(--accent); animation:dotPulse 1.3s infinite; }
+    #dbg { position:fixed; left:8px; bottom:8px; z-index:40; display:none; font:11px/1.4 monospace;
+      background:rgba(0,0,0,.7); padding:6px 9px; border-radius:6px; white-space:pre; }
   </style>
 </head>
 <body>
 
   <video id="cam" autoplay muted playsinline webkit-playsinline></video>
 
-  <!-- Âncora sobre o QR -->
   <div id="anchor">
-    <div class="layer" id="title">Produto</div>
-    <div class="layer" id="pv-wrap"><video id="pv" loop muted playsinline webkit-playsinline></video></div>
-    <div class="layer mock" id="mock-left"><img id="m1" alt="" /></div>
-    <div class="layer mock" id="mock-right"><img id="m2" alt="" /></div>
-    <div class="layer" id="desc">Descrição do produto.</div>
+    <div class="layer" id="l-title"><div class="anim"><div class="brand">
+      <div class="eyebrow" id="b-eyebrow"></div>
+      <h1 id="b-name"></h1>
+      <div class="rule"></div>
+      <div class="sub" id="b-sub"></div>
+    </div></div></div>
+
+    <div class="layer" id="l-video"><div class="anim"><div class="videobox" id="videobox">
+      <span class="tag">Em ação</span>
+      <video id="pv" loop muted playsinline webkit-playsinline></video>
+      <span class="sheen"></span>
+    </div></div></div>
+
+    <div class="layer" id="l-feat"><div class="anim"><div class="feat" id="feat">
+      <div class="bar"><i id="bar"></i></div>
+    </div></div></div>
+
+    <div class="layer" id="l-stats"><div class="anim"><div class="stats" id="stats"></div></div></div>
+
+    <div class="layer" id="l-footer"><div class="anim"><div class="foot">
+      <div class="site" id="f-site"></div>
+      <div class="ct" id="f-ct"></div>
+    </div></div></div>
   </div>
 
   <button id="sound-btn" aria-label="Ativar som">🔇</button>
-  <div id="hint"><span class="dot"></span> Aponte a câmera para o QR code</div>
+  <div id="hint"><span class="d"></span> Aponte a câmera para o QR code</div>
+  <div id="dbg"></div>
 
   <div id="start-overlay">
-    <h1 id="ov-title">Printer AR</h1>
+    <div class="eb" id="ov-eyebrow">Printer AR</div>
+    <h1 id="ov-title">FLOW</h1>
     <p>Toque para abrir a câmera, depois aponte para o QR code do produto.</p>
     <button id="start-btn">Iniciar experiência</button>
   </div>
 
   <script>
-    /* ===== Catálogo (cada QR aponta para ?p=<chave>) ===== */
-    const PRODUCTS = {
-      'demo': { video:'./assets/video.mp4', image1:'./assets/mock1.png', image2:'./assets/mock2.png', title:'Produto Demo', desc:'Experiência de teste — troque pelos dados reais.' },
-
-      // ===== Produtos reais =====
-      'flow': { video:'./assets/flow.mp4', image1:'./assets/flow-1.png', image2:'./assets/flow-2.png', title:'Flow', desc:'' }
-    };
-    const cfg = PRODUCTS[new URLSearchParams(location.search).get('p')] || PRODUCTS['demo'];
-
-    const REF_QR = 220; // tamanho de referência do QR (px) para o qual a composição foi desenhada
-
-    const cam    = document.getElementById('cam');
-    const anchor = document.getElementById('anchor');
-    const pv     = document.getElementById('pv');
-    const startOv= document.getElementById('start-overlay');
-    const startBtn=document.getElementById('start-btn');
-    const soundBtn=document.getElementById('sound-btn');
-    const hint   = document.getElementById('hint');
-
-    // conteúdo
-    pv.addEventListener('error', () => document.getElementById('pv-wrap').style.display='none');
-    if (cfg.video) pv.src = cfg.video; else document.getElementById('pv-wrap').style.display='none';
-    setImg('m1', cfg.image1, 'mock-left');
-    setImg('m2', cfg.image2, 'mock-right');
-    document.getElementById('title').textContent = cfg.title;
-    document.getElementById('desc').textContent  = cfg.desc;
-    document.getElementById('ov-title').textContent = cfg.title;
-    function setImg(id, src, wrap){ const i=document.getElementById(id); i.onerror=()=>document.getElementById(wrap).style.display='none'; i.src=src; }
-
-    // canvas oculto para leitura de quadros
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d', { willReadFrequently: true });
-
-    let running = false, lastSeen = 0;
-    // valores suavizados (low-pass) para evitar tremor
-    let sm = { x:0, y:0, size:REF_QR, ang:0, has:false };
-
-    startBtn.addEventListener('click', async () => {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:{ ideal:'environment' } }, audio:false });
-        cam.srcObject = stream; await cam.play();
-      } catch(e){ alert('Não foi possível acessar a câmera. Verifique as permissões.'); return; }
-      try { await pv.play(); } catch(e){}
-      startOv.style.display='none'; soundBtn.style.display='block'; hint.style.display='flex';
-      running = true; requestAnimationFrame(loop);
-    });
-
-    function loop(){
-      if(!running) return;
-      if(cam.readyState >= 2 && cam.videoWidth){
-        const vw = cam.videoWidth, vh = cam.videoHeight;
-        // amostra reduzida (~ 480px de largura) para performance
-        const scaleDown = Math.min(1, 480 / vw);
-        const cw = Math.round(vw*scaleDown), ch = Math.round(vh*scaleDown);
-        if(canvas.width!==cw){ canvas.width=cw; canvas.height=ch; }
-        ctx.drawImage(cam, 0, 0, cw, ch);
-        const img = ctx.getImageData(0, 0, cw, ch);
-        const code = jsQR(img.data, cw, ch, { inversionAttempts:'dontInvert' });
-
-        if(code){
-          lastSeen = performance.now();
-          const L = code.location;
-          // cantos em coords do canvas -> coords nativas do vídeo
-          const inv = 1/scaleDown;
-          const tl = { x:L.topLeftCorner.x*inv,    y:L.topLeftCorner.y*inv };
-          const tr = { x:L.topRightCorner.x*inv,   y:L.topRightCorner.y*inv };
-          const bl = { x:L.bottomLeftCorner.x*inv, y:L.bottomLeftCorner.y*inv };
-          const cx = (tl.x+tr.x+bl.x+L.bottomRightCorner.x*inv)/4;
-          const cy = (tl.y+tr.y+bl.y+L.bottomRightCorner.y*inv)/4;
-
-          // mapeia coords do vídeo -> tela (object-fit: cover)
-          const sw = window.innerWidth, sh = window.innerHeight;
-          const cover = Math.max(sw/vw, sh/vh);
-          const offX = (sw - vw*cover)/2, offY = (sh - vh*cover)/2;
-          const S = p => ({ x: offX + p.x*cover, y: offY + p.y*cover });
-          const c = S({x:cx,y:cy}), stl = S(tl), str = S(tr);
-          const size = Math.hypot(str.x-stl.x, str.y-stl.y);           // lado do QR na tela
-          const ang  = Math.atan2(str.y-stl.y, str.x-stl.x) * 180/Math.PI;
-
-          // suavização
-          const k = sm.has ? 0.35 : 1;
-          sm.x = lerp(sm.x, c.x, k); sm.y = lerp(sm.y, c.y, k);
-          sm.size = lerp(sm.size, size, k); sm.ang = lerpAngle(sm.ang, ang, k);
-          sm.has = true;
-
-          const f = sm.size / REF_QR;
-          anchor.style.left = sm.x+'px'; anchor.style.top = sm.y+'px';
-          anchor.style.transform = `translate(-50%,-50%) rotate(${sm.ang}deg) scale(${f})`;
-          anchor.classList.add('visible');
-        } else if(performance.now() - lastSeen > 400){
-          anchor.classList.remove('visible'); sm.has=false;
-        }
-      }
-      requestAnimationFrame(loop);
+  /* =========================================================================
+     CATÁLOGO — dados extraídos do PDF "FLOW - Catálogo Produtos V2026.1"
+     Cada QR aponta para ?p=<chave>
+     ========================================================================= */
+  const PRODUCTS = {
+    'flow': {
+      eyebrow: 'EOS Suite',
+      name: 'FLOW',
+      sub: 'Tramitação de processos com assinatura digital',
+      video: './assets/flow.mp4',
+      site: 'printerdobrasil.com.br',
+      contacts: 'Curitiba (41) 3387-8613 &nbsp;•&nbsp; Foz do Iguaçu (45) 3026-0363',
+      pills: ['Feito no Brasil', 'Setor Público', 'ICP-Brasil'],
+      features: [
+        { ico:'⚡', t:'Gestão Ágil e Digital',        d:'Organiza solicitações de cidadãos, servidores e empresas com tramitação paralela ou linear.' },
+        { ico:'📊', t:'Monitoramento em Tempo Real',  d:'Acompanhe cada etapa com atualizações instantâneas e visibilidade completa dos fluxos.' },
+        { ico:'✍️', t:'Assinaturas ICP-Brasil',       d:'Assinatura Avançada e Qualificada com validade jurídica e autenticação reforçada.' },
+        { ico:'🔐', t:'Visibilidade e Segurança',     d:'Defina quem visualiza cada processo ou tarefa conforme o perfil do usuário.' },
+        { ico:'🌱', t:'Paperless',                    d:'Cria documentos direto na aplicação, sem impressão — mais economia e sustentabilidade.' },
+        { ico:'📄', t:'Documentação Unificada',       d:'PDF único consolidando todas as interações e os protocolos de assinatura do fluxo.' },
+        { ico:'☁️', t:'Armazenamento Seguro',         d:'Cloud em território brasileiro, com backups diários e disponibilidade contínua.' },
+        { ico:'🔗', t:'Conectividade Sem Limites',    d:'Integrado à plataforma EOS SUITE, com APIs sob demanda e acesso multidevice.' }
+      ]
+    },
+    'demo': {
+      eyebrow:'Printer', name:'DEMO', sub:'Experiência de teste', video:'./assets/video.mp4',
+      site:'printerdobrasil.com.br', contacts:'', pills:['Teste'],
+      features:[{ ico:'✨', t:'Demonstração', d:'Troque pelos dados reais do produto.' }]
     }
+  };
 
-    function lerp(a,b,t){ return a + (b-a)*t; }
-    function lerpAngle(a,b,t){ let d=((b-a+540)%360)-180; return a + d*t; }
+  const cfg = PRODUCTS[new URLSearchParams(location.search).get('p')] || PRODUCTS['flow'];
+  const DEBUG = new URLSearchParams(location.search).get('debug') === '1';
 
-    soundBtn.addEventListener('click', () => {
-      pv.muted = !pv.muted; soundBtn.textContent = pv.muted?'🔇':'🔊';
-      if(!pv.muted) pv.play().catch(()=>{});
-    });
+  /* ---------- Layout: posições (px) relativas ao centro do QR ----------
+     O QR ocupa aprox. -110..+110. Conteúdo acima e abaixo dele. */
+  const POS = {
+    'l-title':  [0, -560],
+    'l-video':  [0, -350],
+    'l-feat':   [0, -175],
+    'l-stats':  [0,  165],
+    'l-footer': [0,  245]
+  };
+  const REF_QR = 220;
+  for (const [id, [x,y]] of Object.entries(POS)) {
+    const el = document.getElementById(id);
+    el.style.left = x+'px'; el.style.top = y+'px';
+  }
+
+  /* ---------- Preenche conteúdo ---------- */
+  const pv = document.getElementById('pv');
+  document.getElementById('b-eyebrow').textContent = cfg.eyebrow;
+  document.getElementById('b-name').textContent    = cfg.name;
+  document.getElementById('b-sub').textContent     = cfg.sub;
+  document.getElementById('ov-title').textContent  = cfg.name;
+  document.getElementById('ov-eyebrow').textContent= cfg.eyebrow;
+  document.getElementById('f-site').innerHTML      = cfg.site.replace('printer','<span>printer</span>');
+  document.getElementById('f-ct').innerHTML        = cfg.contacts || '';
+
+  document.getElementById('stats').innerHTML = (cfg.pills||[])
+    .map(p => `<div class="pill"><span class="dot"></span>${p}</div>`).join('');
+
+  pv.addEventListener('error', () => { document.getElementById('videobox').style.display='none'; });
+  if (cfg.video) { pv.src = cfg.video; pv.load(); }
+  else { document.getElementById('videobox').style.display='none'; }
+
+  /* ---------- Carrossel de funcionalidades ---------- */
+  const featBox = document.getElementById('feat');
+  const bar = document.getElementById('bar');
+  const cards = cfg.features.map((f,i) => {
+    const el = document.createElement('div');
+    el.className = 'card' + (i===0?' on':'');
+    el.innerHTML = `<div class="ico">${f.ico}</div><div><h3>${f.t}</h3><p>${f.d}</p></div>`;
+    featBox.insertBefore(el, featBox.firstChild);
+    return el;
+  });
+  let fi = 0, cycling = false;
+  function cycle(){
+    cards[fi].classList.remove('on');
+    fi = (fi+1) % cards.length;
+    cards[fi].classList.add('on');
+    bar.classList.remove('run'); void bar.offsetWidth; bar.classList.add('run');
+  }
+  function startCycle(){
+    if (cycling || cards.length < 2) return;
+    cycling = true;
+    bar.classList.add('run');
+    setInterval(cycle, 4000);
+  }
+
+  /* ---------- Câmera + detecção do QR ---------- */
+  const cam=document.getElementById('cam'), anchor=document.getElementById('anchor'),
+        startOv=document.getElementById('start-overlay'), startBtn=document.getElementById('start-btn'),
+        soundBtn=document.getElementById('sound-btn'), hint=document.getElementById('hint'), dbg=document.getElementById('dbg');
+
+  const canvas=document.createElement('canvas');
+  const ctx=canvas.getContext('2d',{ willReadFrequently:true });
+  let running=false, lastSeen=0, sm={x:0,y:0,size:REF_QR,ang:0,has:false};
+
+  startBtn.addEventListener('click', async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:{ideal:'environment'} }, audio:false });
+      cam.srcObject = stream; await cam.play();
+    } catch(e){ alert('Não foi possível acessar a câmera. Verifique as permissões.'); return; }
+    try { await pv.play(); } catch(e){}
+    startOv.style.display='none'; soundBtn.style.display='block'; hint.style.display='flex';
+    if (DEBUG) dbg.style.display='block';
+    running=true; requestAnimationFrame(loop);
+  });
+
+  function loop(){
+    if(!running) return;
+    if(cam.readyState>=2 && cam.videoWidth){
+      const vw=cam.videoWidth, vh=cam.videoHeight;
+      const sd=Math.min(1,480/vw), cw=Math.round(vw*sd), chh=Math.round(vh*sd);
+      if(canvas.width!==cw){ canvas.width=cw; canvas.height=chh; }
+      ctx.drawImage(cam,0,0,cw,chh);
+      const code = jsQR(ctx.getImageData(0,0,cw,chh).data, cw, chh, { inversionAttempts:'dontInvert' });
+
+      if(code){
+        lastSeen=performance.now();
+        const L=code.location, inv=1/sd;
+        const tl={x:L.topLeftCorner.x*inv,y:L.topLeftCorner.y*inv},
+              tr={x:L.topRightCorner.x*inv,y:L.topRightCorner.y*inv},
+              bl={x:L.bottomLeftCorner.x*inv,y:L.bottomLeftCorner.y*inv},
+              br={x:L.bottomRightCorner.x*inv,y:L.bottomRightCorner.y*inv};
+        const cx=(tl.x+tr.x+bl.x+br.x)/4, cy=(tl.y+tr.y+bl.y+br.y)/4;
+        const sw=window.innerWidth, shh=window.innerHeight;
+        const cov=Math.max(sw/vw, shh/vh), offX=(sw-vw*cov)/2, offY=(shh-vh*cov)/2;
+        const S=p=>({x:offX+p.x*cov, y:offY+p.y*cov});
+        const c=S({x:cx,y:cy}), stl=S(tl), str=S(tr);
+        const size=Math.hypot(str.x-stl.x, str.y-stl.y);
+        const ang=Math.atan2(str.y-stl.y, str.x-stl.x)*180/Math.PI;
+
+        const k = sm.has?0.35:1;
+        sm.x=lerp(sm.x,c.x,k); sm.y=lerp(sm.y,c.y,k);
+        sm.size=lerp(sm.size,size,k); sm.ang=lerpAng(sm.ang,ang,k); sm.has=true;
+
+        anchor.style.left=sm.x+'px'; anchor.style.top=sm.y+'px';
+        anchor.style.transform=`translate(-50%,-50%) rotate(${sm.ang}deg) scale(${sm.size/REF_QR})`;
+        if(!anchor.classList.contains('visible')){ anchor.classList.add('visible'); startCycle(); }
+        if(pv.paused) pv.play().catch(()=>{});
+        hint.style.display='none';
+      } else if(performance.now()-lastSeen>400){
+        anchor.classList.remove('visible'); sm.has=false; hint.style.display='flex';
+      }
+
+      if(DEBUG){
+        dbg.textContent =
+          `QR: ${code?'SIM':'nao'}  size:${sm.size.toFixed(0)}\n`+
+          `video: ${pv.paused?'PAUSADO':'tocando'} rs:${pv.readyState} t:${pv.currentTime.toFixed(1)}\n`+
+          `err: ${pv.error?pv.error.code:'-'}  src:${(pv.currentSrc||'').split('/').pop()}\n`+
+          `cam: ${vw}x${vh}`;
+      }
+    }
+    requestAnimationFrame(loop);
+  }
+  const lerp=(a,b,t)=>a+(b-a)*t;
+  const lerpAng=(a,b,t)=>{ let d=((b-a+540)%360)-180; return a+d*t; };
+
+  soundBtn.addEventListener('click', () => {
+    pv.muted=!pv.muted; soundBtn.textContent=pv.muted?'🔇':'🔊';
+    if(!pv.muted) pv.play().catch(()=>{});
+  });
   </script>
 </body>
 </html>
