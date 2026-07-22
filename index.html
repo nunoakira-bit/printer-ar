@@ -4,207 +4,239 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Printer AR</title>
-
-  <script src="https://cdn.jsdelivr.net/npm/aframe@1.5.0/dist/aframe.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
-
   <style>
     :root {
-      --printer-accent: #00a0e3;
-      --printer-dark: #0b0f14;
+      --accent: #00a0e3;
+      --dark: #0b0f14;
     }
-    * { box-sizing: border-box; }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
     html, body {
       margin: 0; width: 100%; height: 100%; overflow: hidden;
       font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-      background: var(--printer-dark); color: #fff;
+      background: var(--dark); color: #fff;
     }
 
+    /* Câmera de fundo */
+    #cam {
+      position: fixed; inset: 0; width: 100%; height: 100%;
+      object-fit: cover; z-index: 0; background: #000;
+    }
+    /* leve escurecimento pra dar contraste ao conteúdo */
+    #cam-scrim { position: fixed; inset: 0; z-index: 1; background: radial-gradient(120% 120% at 50% 40%, transparent 40%, rgba(0,0,0,.35)); pointer-events: none; }
+
+    /* Palco 3D do conteúdo flutuante */
+    #stage {
+      position: fixed; inset: 0; z-index: 2;
+      display: flex; align-items: center; justify-content: center;
+      perspective: 1000px; pointer-events: none;
+    }
+    #scene3d {
+      position: relative; width: 320px; height: 480px;
+      transform-style: preserve-3d;
+      transition: transform .15s ease-out;
+    }
+    .layer {
+      position: absolute; left: 50%; top: 50%;
+      transform: translate(-50%, -50%);
+      opacity: 0;
+      transition: opacity .5s ease, transform .6s cubic-bezier(.2,.8,.2,1);
+      will-change: transform, opacity;
+    }
+    #scene3d.revealed .layer { opacity: 1; }
+
+    /* Vídeo do produto */
+    #pv-wrap {
+      width: 260px; border-radius: 18px; overflow: hidden;
+      box-shadow: 0 20px 50px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.08);
+      transform: translate(-50%, -50%) translateY(20px) translateZ(40px);
+    }
+    #scene3d.revealed #pv-wrap { transform: translate(-50%, -50%) translateZ(40px); }
+    #pv { display: block; width: 100%; height: auto; background: #111; }
+
+    /* Mockups laterais */
+    .mock {
+      width: 118px; border-radius: 14px; overflow: hidden;
+      box-shadow: 0 14px 34px rgba(0,0,0,.5);
+      background: rgba(255,255,255,.06);
+    }
+    .mock img { display: block; width: 100%; height: auto; }
+    #mock-left  { transform: translate(-50%, -50%) translate(-150px, 120px) rotateY(22deg) translateZ(-20px); }
+    #mock-right { transform: translate(-50%, -50%) translate( 150px, 120px) rotateY(-22deg) translateZ(-20px); }
+    #scene3d.revealed #mock-left  { transform: translate(-50%, -50%) translate(-118px, 120px) rotateY(22deg) translateZ(-10px); }
+    #scene3d.revealed #mock-right { transform: translate(-50%, -50%) translate( 118px, 120px) rotateY(-22deg) translateZ(-10px); }
+
+    /* Título */
+    #title {
+      top: 12%; font-size: 1.5rem; font-weight: 800; letter-spacing: .3px;
+      text-align: center; width: 300px; text-shadow: 0 2px 12px rgba(0,0,0,.6);
+      transform: translate(-50%, -50%) translateY(-16px) translateZ(60px);
+    }
+    #scene3d.revealed #title { transform: translate(-50%, -50%) translateZ(60px); }
+    #title::after {
+      content: ""; display: block; width: 54px; height: 3px; margin: 10px auto 0;
+      background: var(--accent); border-radius: 2px;
+    }
+
+    /* Descrição */
+    #desc {
+      top: 84%; width: 290px; text-align: center; font-size: .95rem; line-height: 1.45;
+      color: #dff1fb; text-shadow: 0 2px 10px rgba(0,0,0,.7);
+      transform: translate(-50%, -50%) translateY(16px) translateZ(30px);
+    }
+    #scene3d.revealed #desc { transform: translate(-50%, -50%) translateZ(30px); }
+
+    /* Start overlay */
     #start-overlay {
       position: fixed; inset: 0; z-index: 30;
       display: flex; flex-direction: column; align-items: center; justify-content: center;
       text-align: center; padding: 24px;
-      background: radial-gradient(120% 120% at 50% 0%, rgba(0,160,227,0.18), transparent 60%), var(--printer-dark);
+      background: radial-gradient(120% 120% at 50% 0%, rgba(0,160,227,.20), transparent 60%), var(--dark);
     }
-    #start-overlay h1 { font-size: 1.6rem; margin: 0 0 8px; letter-spacing: .5px; }
+    #start-overlay h1 { font-size: 1.6rem; margin: 0 0 8px; }
     #start-overlay p  { font-size: 1rem; opacity: .8; margin: 0 0 32px; max-width: 320px; line-height: 1.5; }
     #start-btn {
-      appearance: none; border: 0; border-radius: 999px; padding: 16px 40px;
-      font-size: 1.05rem; font-weight: 700; color: #fff; background: var(--printer-accent);
-      box-shadow: 0 8px 24px rgba(0,160,227,.4); cursor: pointer;
+      border: 0; border-radius: 999px; padding: 16px 40px; font-size: 1.05rem; font-weight: 700;
+      color: #fff; background: var(--accent); box-shadow: 0 8px 24px rgba(0,160,227,.4); cursor: pointer;
     }
     #start-btn:active { transform: scale(.97); }
 
-    #scan-hint {
-      position: fixed; left: 50%; bottom: 32px; transform: translateX(-50%); z-index: 20;
-      display: none; align-items: center; gap: 10px; padding: 12px 20px; border-radius: 999px;
-      background: rgba(0,0,0,.55); backdrop-filter: blur(6px); font-size: .9rem; white-space: nowrap;
-    }
-    #scan-hint .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--printer-accent); animation: pulse 1.2s infinite; }
-    @keyframes pulse { 0%,100% { opacity: .3; } 50% { opacity: 1; } }
-
+    /* Botão de som */
     #sound-btn {
       position: fixed; right: 16px; top: 16px; z-index: 20; display: none;
       width: 48px; height: 48px; border: 0; border-radius: 50%;
-      background: rgba(0,0,0,.55); backdrop-filter: blur(6px); color: #fff; font-size: 1.2rem; cursor: pointer;
+      background: rgba(0,0,0,.5); backdrop-filter: blur(6px); color: #fff; font-size: 1.2rem; cursor: pointer;
+    }
+    #hint {
+      position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%); z-index: 20; display: none;
+      padding: 10px 18px; border-radius: 999px; background: rgba(0,0,0,.5); backdrop-filter: blur(6px);
+      font-size: .85rem; white-space: nowrap;
     }
   </style>
 </head>
 <body>
 
+  <video id="cam" autoplay muted playsinline webkit-playsinline></video>
+  <div id="cam-scrim"></div>
+
+  <div id="stage">
+    <div id="scene3d">
+      <div class="layer" id="title">Produto</div>
+      <div class="layer" id="pv-wrap">
+        <video id="pv" loop muted playsinline webkit-playsinline></video>
+      </div>
+      <div class="layer mock" id="mock-left"><img id="m1" alt="" /></div>
+      <div class="layer mock" id="mock-right"><img id="m2" alt="" /></div>
+      <div class="layer" id="desc">Descrição do produto.</div>
+    </div>
+  </div>
+
+  <button id="sound-btn" aria-label="Ativar som">🔇</button>
+  <div id="hint">Incline o celular para explorar ✨</div>
+
   <div id="start-overlay">
     <h1 id="ov-title">Printer AR</h1>
-    <p id="ov-desc">Aponte a câmera para a imagem do produto e explore em realidade aumentada.</p>
+    <p>Toque para abrir a câmera e ver o produto em realidade aumentada.</p>
     <button id="start-btn">Iniciar experiência</button>
   </div>
 
-  <div id="scan-hint"><span class="dot"></span> Aponte para a imagem do produto</div>
-  <button id="sound-btn" aria-label="Ativar som">🔇</button>
-
-  <a-scene
-    id="scene"
-    color-space="sRGB"
-    renderer="colorManagement: true, physicallyCorrectLights"
-    vr-mode-ui="enabled: false"
-    device-orientation-permission-ui="enabled: false"
-  >
-    <a-assets id="assets"><!-- vídeo e imagens injetados via JS --></a-assets>
-
-    <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
-
-    <!-- Tudo aqui dentro é ancorado à imagem. Coordenadas: 1 unidade = largura do alvo. -->
-    <a-entity id="target" mindar-image-target="targetIndex: 0">
-
-      <!-- Container que flutua suavemente (bobbing) -->
-      <a-entity id="floaty"
-        animation__bob="property: position; dir: alternate; dur: 2600; easing: easeInOutSine; loop: true; from: 0 0 0; to: 0 0.04 0">
-
-        <!-- VÍDEO principal (acima do produto) -->
-        <a-video id="ar-video" src="#vid"
-          width="1" height="0.5625" position="0 0.9 0"
-          scale="0 0 0"
-          animation__in="property: scale; startEvents: reveal; dur: 500; easing: easeOutBack; to: 1 1 1"></a-video>
-
-        <!-- MOCKUP esquerdo -->
-        <a-image id="mock-left" src="#img1"
-          width="0.5" height="0.5" position="-0.95 0.25 0" rotation="0 18 0"
-          scale="0 0 0"
-          animation__in="property: scale; startEvents: reveal; delay: 150; dur: 500; easing: easeOutBack; to: 1 1 1"></a-image>
-
-        <!-- MOCKUP direito -->
-        <a-image id="mock-right" src="#img2"
-          width="0.5" height="0.5" position="0.95 0.25 0" rotation="0 -18 0"
-          scale="0 0 0"
-          animation__in="property: scale; startEvents: reveal; delay: 250; dur: 500; easing: easeOutBack; to: 1 1 1"></a-image>
-
-        <!-- TÍTULO (texto flutuante) -->
-        <a-entity id="ar-title"
-          text="value: ; color: #FFFFFF; align: center; width: 2.2; font: roboto; wrapCount: 22"
-          position="0 1.55 0"
-          scale="0 0 0"
-          animation__in="property: scale; startEvents: reveal; delay: 350; dur: 400; easing: easeOutBack; to: 1 1 1"></a-entity>
-
-        <!-- SUBTÍTULO / descrição -->
-        <a-entity id="ar-desc"
-          text="value: ; color: #9fd8f2; align: center; width: 2.0; font: roboto; wrapCount: 34"
-          position="0 -0.55 0"
-          scale="0 0 0"
-          animation__in="property: scale; startEvents: reveal; delay: 450; dur: 400; easing: easeOutBack; to: 1 1 1"></a-entity>
-
-        <!-- Barrinha de destaque atrás do título -->
-        <a-plane position="0 1.55 -0.02" width="1.6" height="0.28" color="#00a0e3" opacity="0.18" radius="0.05"
-          scale="0 0 0"
-          animation__in="property: scale; startEvents: reveal; delay: 300; dur: 400; to: 1 1 1"></a-plane>
-
-      </a-entity>
-    </a-entity>
-  </a-scene>
-
   <script>
-    /* =========================================================================
-       CONFIGURAÇÃO DOS PRODUTOS
-       Cada QR aponta para  ...?p=<chave>  e carrega os assets abaixo.
-       Troque os caminhos pelos seus arquivos reais em /assets.
-       ========================================================================= */
+    /* =======================================================================
+       CATÁLOGO DE PRODUTOS  —  cada QR aponta para  ...?p=<chave>
+       Troque os caminhos/textos pelos seus arquivos reais em /assets.
+       Imagens/vídeos ausentes simplesmente não aparecem (degradam sem erro).
+       ======================================================================= */
     const PRODUCTS = {
       'demo': {
-        mind:     './assets/target.mind',
-        video:    './assets/video.mp4',
-        image1:   './assets/mock1.png',
-        image2:   './assets/mock2.png',
-        title:    'Nome do Produto',
-        desc:     'Descrição curta do produto — material, aplicação, diferencial.'
+        video: './assets/video.mp4',
+        image1: './assets/mock1.png',
+        image2: './assets/mock2.png',
+        title: 'Produto Demo',
+        desc: 'Experiência de teste — troque pelos dados reais do produto.'
       },
-      // 'produto-a': {
-      //   mind: './assets/produto-a.mind', video: './assets/produto-a.mp4',
-      //   image1: './assets/produto-a-1.png', image2: './assets/produto-a-2.png',
-      //   title: 'Produto A', desc: 'Descrição do Produto A.'
-      // },
+      'produto-a': {
+        video: './assets/produto-a.mp4', image1: './assets/produto-a-1.png', image2: './assets/produto-a-2.png',
+        title: 'Produto A', desc: 'Descrição do Produto A — material, aplicação, diferencial.'
+      },
+      'produto-b': {
+        video: './assets/produto-b.mp4', image1: './assets/produto-b-1.png', image2: './assets/produto-b-2.png',
+        title: 'Produto B', desc: 'Descrição do Produto B.'
+      },
+      'produto-c': {
+        video: './assets/produto-c.mp4', image1: './assets/produto-c-1.png', image2: './assets/produto-c-2.png',
+        title: 'Produto C', desc: 'Descrição do Produto C.'
+      }
     };
 
-    // Lê ?p=chave da URL (default: 'demo')
-    const params = new URLSearchParams(location.search);
-    const key = params.get('p') || 'demo';
-    const cfg = PRODUCTS[key] || PRODUCTS['demo'];
+    const cfg = PRODUCTS[new URLSearchParams(location.search).get('p')] || PRODUCTS['demo'];
 
-    // Injeta assets e configura o alvo ANTES de iniciar o MindAR
-    const assets   = document.getElementById('assets');
-    const targetEl = document.getElementById('target');
-    const scene    = document.getElementById('scene');
-
-    assets.innerHTML = `
-      <video id="vid" src="${cfg.video}" preload="auto" loop muted playsinline webkit-playsinline crossorigin="anonymous"></video>
-      <img id="img1" src="${cfg.image1}" crossorigin="anonymous" />
-      <img id="img2" src="${cfg.image2}" crossorigin="anonymous" />
-    `;
-    document.getElementById('ar-title').setAttribute('text', 'value', cfg.title);
-    document.getElementById('ar-desc').setAttribute('text', 'value', cfg.desc);
+    // preenche conteúdo
+    const pv = document.getElementById('pv');
+    pv.src = cfg.video;
+    setImg('m1', cfg.image1, 'mock-left');
+    setImg('m2', cfg.image2, 'mock-right');
+    document.getElementById('title').textContent = cfg.title;
+    document.getElementById('desc').textContent  = cfg.desc;
     document.getElementById('ov-title').textContent = cfg.title;
-    scene.setAttribute('mindar-image',
-      `imageTargetSrc: ${cfg.mind}; autoStart: false; uiScanning: no; uiLoading: no; uiError: no;`);
 
-    // ---- UI / fluxo ----
-    const startOv  = document.getElementById('start-overlay');
-    const startBtn = document.getElementById('start-btn');
-    const scanHint = document.getElementById('scan-hint');
-    const soundBtn = document.getElementById('sound-btn');
-    const video    = () => document.getElementById('vid');
-    const floaty   = document.getElementById('floaty');
+    function setImg(imgId, src, wrapId) {
+      const img = document.getElementById(imgId);
+      img.onerror = () => { document.getElementById(wrapId).style.display = 'none'; };
+      img.src = src;
+    }
 
-    let arSystem, targetVisible = false;
+    const cam       = document.getElementById('cam');
+    const scene3d   = document.getElementById('scene3d');
+    const startOv   = document.getElementById('start-overlay');
+    const startBtn  = document.getElementById('start-btn');
+    const soundBtn  = document.getElementById('sound-btn');
+    const hint      = document.getElementById('hint');
 
     startBtn.addEventListener('click', async () => {
+      // 1) câmera traseira
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: 'environment' } }, audio: false
+        });
+        cam.srcObject = stream;
+        await cam.play();
+      } catch (e) {
+        alert('Não foi possível acessar a câmera. Verifique as permissões do navegador.');
+        return;
+      }
+
+      // 2) permissão de orientação (iOS 13+)
+      try {
+        if (typeof DeviceOrientationEvent !== 'undefined' &&
+            typeof DeviceOrientationEvent.requestPermission === 'function') {
+          await DeviceOrientationEvent.requestPermission();
+        }
+        window.addEventListener('deviceorientation', onTilt);
+      } catch (e) { /* segue sem parallax */ }
+
+      // 3) vídeo do produto
+      try { await pv.play(); } catch (e) {}
+
       startOv.style.display = 'none';
-      scanHint.style.display = 'flex';
       soundBtn.style.display = 'block';
-      arSystem = scene.systems['mindar-image-system'];
-      try { await arSystem.start(); }
-      catch (e) { alert('Não foi possível acessar a câmera. Verifique as permissões do navegador.'); return; }
-      try { const v = video(); await v.play(); v.pause(); v.currentTime = 0; } catch (e) {}
+      hint.style.display = 'block';
+      setTimeout(() => hint.style.display = 'none', 4000);
+
+      // revela com animação
+      requestAnimationFrame(() => scene3d.classList.add('revealed'));
     });
 
-    targetEl.addEventListener('targetFound', () => {
-      targetVisible = true;
-      scanHint.style.display = 'none';
-      // dispara as animações de entrada de todos os elementos
-      floaty.querySelectorAll('[animation__in]').forEach(el => el.emit('reveal'));
-      video().play().catch(() => {});
-    });
+    // Parallax por inclinação
+    function onTilt(e) {
+      const g = Math.max(-25, Math.min(25, e.gamma || 0)); // esq/dir
+      const b = Math.max(-25, Math.min(25, (e.beta || 0) - 45)); // frente/trás
+      scene3d.style.transform = `rotateY(${g * 0.6}deg) rotateX(${-b * 0.4}deg)`;
+    }
 
-    targetEl.addEventListener('targetLost', () => {
-      targetVisible = false;
-      scanHint.style.display = 'flex';
-      // reseta para reaparecer com animação na próxima detecção
-      floaty.querySelectorAll('[animation__in]').forEach(el => el.setAttribute('scale', '0 0 0'));
-      video().pause();
-    });
-
+    // Som
     soundBtn.addEventListener('click', () => {
-      const v = video();
-      v.muted = !v.muted;
-      soundBtn.textContent = v.muted ? '🔇' : '🔊';
-      soundBtn.setAttribute('aria-label', v.muted ? 'Ativar som' : 'Desativar som');
-      if (!v.muted && targetVisible) v.play().catch(() => {});
+      pv.muted = !pv.muted;
+      soundBtn.textContent = pv.muted ? '🔇' : '🔊';
+      if (!pv.muted) pv.play().catch(() => {});
     });
   </script>
 </body>
