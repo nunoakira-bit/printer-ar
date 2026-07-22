@@ -3,106 +3,119 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Printer AR</title>
+  <title>Printer AR — FLOW</title>
   <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
   <style>
-    :root { --accent:#00a0e3; --accent2:#3ddc97; --dark:#0b0f14; }
+    /* Identidade Printer: amarelo + preto + branco */
+    :root { --y:#FDB930; --y2:#FFD36B; --ink:#16181D; --ink2:#0E1014; }
     * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
     html,body { margin:0; width:100%; height:100%; overflow:hidden;
-      font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; background:var(--dark); color:#fff; }
-
+      font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; background:var(--ink2); color:#fff; }
     #cam { position:fixed; inset:0; width:100%; height:100%; object-fit:cover; z-index:0; background:#000; }
 
-    /* ---------- Âncora sobre o QR ---------- */
+    /* ---------------- Âncora sobre o QR ---------------- */
     #anchor { position:fixed; left:0; top:0; z-index:2; width:0; height:0;
       transform:translate(-50%,-50%); opacity:0; transition:opacity .3s ease; pointer-events:none; }
     #anchor.visible { opacity:1; }
     .layer { position:absolute; left:0; top:0; }
     .layer > .anim { position:absolute; left:0; top:0; transform:translate(-50%,-50%); }
 
-    /* ---------- Micro-animações ---------- */
-    @keyframes fadeUp   { from{ opacity:0; transform:translate(-50%,-50%) translateY(26px) scale(.94);} to{ opacity:1; transform:translate(-50%,-50%) translateY(0) scale(1);} }
-    @keyframes floatY   { 0%,100%{ margin-top:0 } 50%{ margin-top:-7px } }
-    @keyframes glowPulse{ 0%,100%{ box-shadow:0 16px 40px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.10), 0 0 22px rgba(0,160,227,.35) }
-                          50%    { box-shadow:0 16px 44px rgba(0,0,0,.6),  0 0 0 1px rgba(0,160,227,.45), 0 0 40px rgba(0,160,227,.6) } }
-    @keyframes drawLine { from{ width:0 } to{ width:64px } }
-    @keyframes dotPulse { 0%,100%{ transform:scale(1); opacity:.45 } 50%{ transform:scale(1.5); opacity:1 } }
-    @keyframes sweep    { from{ transform:translateX(-120%) } to{ transform:translateX(320%) } }
-    @keyframes barFill  { from{ width:0% } to{ width:100% } }
+    /* ---------------- Micro-animações ---------------- */
+    @keyframes fadeUp  { from{opacity:0; transform:translate(-50%,-50%) translateY(30px) scale(.93)} to{opacity:1; transform:translate(-50%,-50%) translateY(0) scale(1)} }
+    @keyframes floatY  { 0%,100%{margin-top:0} 50%{margin-top:-8px} }
+    @keyframes floatY2 { 0%,100%{margin-top:-6px} 50%{margin-top:6px} }
+    @keyframes glowPls { 0%,100%{box-shadow:0 18px 44px rgba(0,0,0,.6), 0 0 0 2px rgba(253,185,48,.55), 0 0 26px rgba(253,185,48,.30)}
+                         50%    {box-shadow:0 18px 50px rgba(0,0,0,.66),0 0 0 2px rgba(253,185,48,.95), 0 0 46px rgba(253,185,48,.65)} }
+    @keyframes sweep   { from{transform:translateX(-130%)} to{transform:translateX(340%)} }
+    @keyframes drawW   { from{width:0} to{width:78px} }
+    @keyframes barFill { from{width:0%} to{width:100%} }
+    @keyframes dotP    { 0%,100%{transform:scale(1);opacity:.5} 50%{transform:scale(1.5);opacity:1} }
+    @keyframes wave    { 0%,100%{transform:translateX(0)} 50%{transform:translateX(3px)} }
+    @keyframes iconPop { from{opacity:0; transform:scale(.5) rotate(-12deg)} to{opacity:1; transform:scale(1) rotate(0)} }
 
-    #anchor.visible .anim { animation:fadeUp .65s cubic-bezier(.2,.85,.25,1) backwards; }
-    #anchor.visible #l-title  .anim { animation-delay:.00s }
-    #anchor.visible #l-video  .anim { animation-delay:.12s }
-    #anchor.visible #l-feat   .anim { animation-delay:.24s }
-    #anchor.visible #l-stats  .anim { animation-delay:.34s }
-    #anchor.visible #l-footer .anim { animation-delay:.44s }
+    #anchor.visible .anim { animation:fadeUp .7s cubic-bezier(.2,.85,.25,1) backwards; }
+    #anchor.visible #l-brand .anim{animation-delay:.00s} #anchor.visible #l-video .anim{animation-delay:.10s}
+    #anchor.visible #l-mockL .anim{animation-delay:.30s} #anchor.visible #l-mockR .anim{animation-delay:.38s}
+    #anchor.visible #l-feat  .anim{animation-delay:.20s} #anchor.visible #l-pills .anim{animation-delay:.46s}
+    #anchor.visible #l-foot  .anim{animation-delay:.54s}
 
-    /* ---------- Bloco: título ---------- */
-    #l-title { }
-    .brand { width:420px; text-align:center; animation:floatY 5s ease-in-out infinite; }
-    .brand .eyebrow { font-size:15px; letter-spacing:3px; text-transform:uppercase; color:var(--accent);
-      font-weight:700; text-shadow:0 2px 10px rgba(0,0,0,.8); }
-    .brand h1 { margin:4px 0 0; font-size:76px; font-weight:900; letter-spacing:-1px; line-height:1;
-      background:linear-gradient(180deg,#fff 40%,#9fd8f2); -webkit-background-clip:text; background-clip:text; color:transparent;
-      filter:drop-shadow(0 4px 16px rgba(0,0,0,.75)); }
-    .brand .rule { height:4px; background:linear-gradient(90deg,var(--accent),var(--accent2)); border-radius:3px;
-      margin:12px auto 10px; animation:drawLine .8s .5s cubic-bezier(.2,.8,.2,1) backwards; }
-    .brand .sub { font-size:19px; line-height:1.4; color:#dff1fb; text-shadow:0 2px 10px rgba(0,0,0,.85); }
+    /* ---------------- Marca ---------------- */
+    .brand { width:460px; text-align:center; animation:floatY 5.5s ease-in-out infinite; }
+    .brandrow { display:flex; align-items:center; justify-content:center; gap:16px; }
+    .waves { width:64px; height:52px; flex:0 0 auto; animation:wave 3s ease-in-out infinite; }
+    .waves path { stroke:var(--y); stroke-width:9; fill:none; stroke-linecap:round; }
+    .brand h1 { margin:0; font-size:86px; font-weight:900; letter-spacing:-2px; line-height:.95; color:#fff;
+      text-shadow:0 6px 22px rgba(0,0,0,.85); }
+    .brand .eyebrow { font-size:14px; letter-spacing:4px; text-transform:uppercase; color:var(--y); font-weight:800;
+      text-shadow:0 2px 10px rgba(0,0,0,.9); margin-bottom:6px; }
+    .brand .rule { height:5px; background:var(--y); border-radius:3px; margin:14px auto 12px; animation:drawW .9s .55s cubic-bezier(.2,.8,.2,1) backwards; }
+    .brand .sub { font-size:21px; font-weight:600; line-height:1.35; color:#fff; text-shadow:0 2px 12px rgba(0,0,0,.95); }
 
-    /* ---------- Bloco: vídeo ---------- */
-    .videobox { width:360px; border-radius:18px; overflow:hidden; position:relative;
-      animation:glowPulse 3.4s ease-in-out infinite; background:#0d1218; }
+    /* ---------------- Vídeo ---------------- */
+    .videobox { width:380px; border-radius:20px; overflow:hidden; position:relative; background:#0d1218;
+      animation:glowPls 3.6s ease-in-out infinite; }
     .videobox video { display:block; width:100%; height:auto; }
-    .videobox .sheen { position:absolute; top:0; bottom:0; width:60px; pointer-events:none;
-      background:linear-gradient(100deg,transparent,rgba(255,255,255,.22),transparent);
-      animation:sweep 4.5s ease-in-out infinite 1s; }
-    .videobox .tag { position:absolute; left:12px; top:12px; font-size:13px; font-weight:700; letter-spacing:1.5px;
-      padding:5px 12px; border-radius:999px; background:rgba(0,160,227,.9); text-transform:uppercase; }
+    .videobox .sheen { position:absolute; top:0; bottom:0; width:70px; pointer-events:none;
+      background:linear-gradient(100deg,transparent,rgba(255,255,255,.28),transparent); animation:sweep 5s ease-in-out infinite 1.2s; }
+    .videobox .tag { position:absolute; left:14px; top:14px; font-size:13px; font-weight:900; letter-spacing:1.6px;
+      padding:6px 14px; border-radius:999px; background:var(--y); color:var(--ink); text-transform:uppercase; }
 
-    /* ---------- Bloco: funcionalidades (carrossel) ---------- */
-    .feat { width:380px; height:132px; position:relative; }
-    .card { position:absolute; inset:0; border-radius:16px; padding:16px 18px;
-      background:linear-gradient(145deg, rgba(14,22,30,.90), rgba(10,16,22,.78));
-      border:1px solid rgba(0,160,227,.35); backdrop-filter:blur(10px);
-      box-shadow:0 14px 34px rgba(0,0,0,.5);
-      display:flex; gap:14px; align-items:flex-start;
-      opacity:0; transform:translateY(14px) scale(.97); transition:opacity .5s ease, transform .5s cubic-bezier(.2,.8,.2,1); }
+    /* ---------------- Mockups ---------------- */
+    .mock { filter:drop-shadow(0 18px 34px rgba(0,0,0,.65)); }
+    .mock img { display:block; width:100%; height:auto; }
+    #m-left  { width:230px; animation:floatY  6s ease-in-out infinite; }
+    #m-right { width:250px; animation:floatY2 7s ease-in-out infinite; }
+
+    /* ---------------- Funcionalidades (carrossel) ---------------- */
+    .feat { width:400px; height:150px; position:relative; }
+    .card { position:absolute; inset:0; border-radius:18px; padding:18px 20px 22px;
+      background:linear-gradient(150deg, rgba(22,24,29,.94), rgba(14,16,20,.86));
+      border:1px solid rgba(253,185,48,.45); backdrop-filter:blur(12px);
+      box-shadow:0 16px 38px rgba(0,0,0,.55);
+      display:flex; gap:16px; align-items:flex-start;
+      opacity:0; transform:translateY(16px) scale(.96); transition:opacity .55s ease, transform .55s cubic-bezier(.2,.8,.2,1); }
     .card.on { opacity:1; transform:translateY(0) scale(1); }
-    .card .ico { font-size:30px; line-height:1; flex:0 0 auto; margin-top:2px; }
-    .card h3 { margin:0 0 5px; font-size:19px; font-weight:800; color:#fff; }
-    .card p  { margin:0; font-size:14.5px; line-height:1.4; color:#b9d7e8; }
-    .feat .bar { position:absolute; left:16px; right:16px; bottom:9px; height:3px; border-radius:2px; background:rgba(255,255,255,.14); overflow:hidden; }
-    .feat .bar i { display:block; height:100%; background:linear-gradient(90deg,var(--accent),var(--accent2)); border-radius:2px; }
-    .feat .bar i.run { animation:barFill 4s linear; }
+    .card .ico { flex:0 0 auto; width:56px; height:56px; display:flex; align-items:center; justify-content:center; }
+    .card.on .ico { animation:iconPop .55s .1s cubic-bezier(.3,1.4,.5,1) backwards; }
+    .card .ico img { width:100%; height:100%; object-fit:contain; }
+    .card h3 { margin:2px 0 6px; font-size:20px; font-weight:900; color:var(--y); line-height:1.15; }
+    .card p  { margin:0; font-size:15px; line-height:1.42; color:#E6EAEF; }
+    .feat .bar { position:absolute; left:20px; right:20px; bottom:10px; height:3px; border-radius:2px; background:rgba(255,255,255,.15); overflow:hidden; }
+    .feat .bar i { display:block; height:100%; background:var(--y); border-radius:2px; }
+    .feat .bar i.run { animation:barFill 4.2s linear; }
 
-    /* ---------- Bloco: selos ---------- */
-    .stats { display:flex; gap:10px; justify-content:center; width:420px; }
-    .pill { display:flex; align-items:center; gap:7px; padding:8px 14px; border-radius:999px; font-size:13.5px; font-weight:700;
-      background:rgba(10,16,22,.72); border:1px solid rgba(255,255,255,.16); backdrop-filter:blur(8px); white-space:nowrap; }
-    .pill .dot { width:8px; height:8px; border-radius:50%; background:var(--accent2); animation:dotPulse 1.8s ease-in-out infinite; }
+    /* ---------------- Selos ---------------- */
+    .pills { display:flex; gap:10px; justify-content:center; width:460px; }
+    .pill { display:flex; align-items:center; gap:7px; padding:9px 16px; border-radius:999px; font-size:14px; font-weight:800;
+      background:rgba(22,24,29,.8); border:1px solid rgba(253,185,48,.5); backdrop-filter:blur(8px); white-space:nowrap; color:#fff; }
+    .pill .dot { width:8px; height:8px; border-radius:50%; background:var(--y); animation:dotP 1.9s ease-in-out infinite; }
 
-    /* ---------- Bloco: rodapé ---------- */
-    .foot { width:440px; text-align:center; animation:floatY 6s ease-in-out infinite; }
-    .foot .site { font-size:20px; font-weight:800; color:#fff; text-shadow:0 2px 10px rgba(0,0,0,.85); }
-    .foot .site span { color:var(--accent); }
-    .foot .ct { margin-top:7px; font-size:13.5px; color:#cfe6f4; text-shadow:0 2px 8px rgba(0,0,0,.9); line-height:1.6; }
+    /* ---------------- Rodapé ---------------- */
+    .foot { width:520px; text-align:center; animation:floatY 6.5s ease-in-out infinite; }
+    .foot .site { font-size:22px; font-weight:900; color:#fff; text-shadow:0 2px 12px rgba(0,0,0,.95); }
+    .foot .site b { color:var(--y); }
+    .foot .ct { margin-top:8px; font-size:14px; color:#DCE3EA; text-shadow:0 2px 10px rgba(0,0,0,.98); line-height:1.65; }
 
-    /* ---------- UI ---------- */
+    /* ---------------- UI ---------------- */
     #start-overlay { position:fixed; inset:0; z-index:30; display:flex; flex-direction:column; align-items:center; justify-content:center;
-      text-align:center; padding:24px; background:radial-gradient(120% 120% at 50% 0%, rgba(0,160,227,.22), transparent 60%), var(--dark); }
-    #start-overlay .eb { font-size:13px; letter-spacing:3px; text-transform:uppercase; color:var(--accent); font-weight:700; }
-    #start-overlay h1 { font-size:2.6rem; font-weight:900; margin:6px 0 10px; letter-spacing:-1px; }
+      text-align:center; padding:24px; background:radial-gradient(120% 120% at 50% 0%, rgba(253,185,48,.20), transparent 60%), var(--ink2); }
+    #ov-waves { width:74px; height:58px; margin-bottom:6px; }
+    #ov-waves path { stroke:var(--y); stroke-width:9; fill:none; stroke-linecap:round; }
+    #start-overlay .eb { font-size:12px; letter-spacing:4px; text-transform:uppercase; color:var(--y); font-weight:800; }
+    #start-overlay h1 { font-size:3rem; font-weight:900; margin:4px 0 12px; letter-spacing:-2px; }
     #start-overlay p { font-size:1rem; opacity:.82; margin:0 0 34px; max-width:330px; line-height:1.55; }
-    #start-btn { border:0; border-radius:999px; padding:16px 42px; font-size:1.05rem; font-weight:800; color:#fff;
-      background:linear-gradient(135deg,var(--accent),#0079b8); box-shadow:0 10px 30px rgba(0,160,227,.45); cursor:pointer; }
+    #start-btn { border:0; border-radius:999px; padding:17px 44px; font-size:1.05rem; font-weight:900; color:var(--ink);
+      background:var(--y); box-shadow:0 10px 30px rgba(253,185,48,.45); cursor:pointer; }
     #start-btn:active { transform:scale(.97); }
-    #sound-btn { position:fixed; right:16px; top:16px; z-index:20; display:none; width:48px; height:48px; border:0;
-      border-radius:50%; background:rgba(0,0,0,.5); backdrop-filter:blur(6px); color:#fff; font-size:1.2rem; cursor:pointer; }
+
+    #sound-btn { position:fixed; right:16px; top:16px; z-index:22; display:none; align-items:center; gap:8px;
+      height:48px; padding:0 18px; border:0; border-radius:999px; background:var(--y); color:var(--ink);
+      font-size:14px; font-weight:900; cursor:pointer; box-shadow:0 8px 22px rgba(0,0,0,.45); pointer-events:auto; }
+    #sound-btn.muted { animation:dotP 1.8s ease-in-out infinite; }
     #hint { position:fixed; left:50%; bottom:26px; transform:translateX(-50%); z-index:20; display:none; align-items:center; gap:10px;
-      padding:12px 20px; border-radius:999px; background:rgba(0,0,0,.55); backdrop-filter:blur(6px); font-size:.9rem; white-space:nowrap; }
-    #hint .d { width:10px; height:10px; border-radius:50%; background:var(--accent); animation:dotPulse 1.3s infinite; }
-    #dbg { position:fixed; left:8px; bottom:8px; z-index:40; display:none; font:11px/1.4 monospace;
-      background:rgba(0,0,0,.7); padding:6px 9px; border-radius:6px; white-space:pre; }
+      padding:12px 20px; border-radius:999px; background:rgba(0,0,0,.6); backdrop-filter:blur(6px); font-size:.9rem; white-space:nowrap; }
+    #hint .d { width:10px; height:10px; border-radius:50%; background:var(--y); animation:dotP 1.3s infinite; }
+    #dbg { position:fixed; left:8px; bottom:8px; z-index:40; display:none; font:11px/1.4 monospace; background:rgba(0,0,0,.75); padding:6px 9px; border-radius:6px; white-space:pre; }
   </style>
 </head>
 <body>
@@ -110,9 +123,12 @@
   <video id="cam" autoplay muted playsinline webkit-playsinline></video>
 
   <div id="anchor">
-    <div class="layer" id="l-title"><div class="anim"><div class="brand">
+    <div class="layer" id="l-brand"><div class="anim"><div class="brand">
       <div class="eyebrow" id="b-eyebrow"></div>
-      <h1 id="b-name"></h1>
+      <div class="brandrow">
+        <svg class="waves" viewBox="0 0 64 52"><path d="M4 12c8-8 16 8 24 0s16 8 24 0"/><path d="M4 26c8-8 16 8 24 0s16 8 24 0"/><path d="M4 40c8-8 16 8 24 0s16 8 24 0"/></svg>
+        <h1 id="b-name"></h1>
+      </div>
       <div class="rule"></div>
       <div class="sub" id="b-sub"></div>
     </div></div></div>
@@ -123,168 +139,156 @@
       <span class="sheen"></span>
     </div></div></div>
 
+    <div class="layer" id="l-mockL"><div class="anim"><div class="mock" id="m-left"><img id="mi-l" alt="" /></div></div></div>
+    <div class="layer" id="l-mockR"><div class="anim"><div class="mock" id="m-right"><img id="mi-r" alt="" /></div></div></div>
+
     <div class="layer" id="l-feat"><div class="anim"><div class="feat" id="feat">
       <div class="bar"><i id="bar"></i></div>
     </div></div></div>
 
-    <div class="layer" id="l-stats"><div class="anim"><div class="stats" id="stats"></div></div></div>
+    <div class="layer" id="l-pills"><div class="anim"><div class="pills" id="pills"></div></div></div>
 
-    <div class="layer" id="l-footer"><div class="anim"><div class="foot">
+    <div class="layer" id="l-foot"><div class="anim"><div class="foot">
       <div class="site" id="f-site"></div>
       <div class="ct" id="f-ct"></div>
     </div></div></div>
   </div>
 
-  <button id="sound-btn" aria-label="Ativar som">🔇</button>
+  <button id="sound-btn" class="muted">🔇 Ativar som</button>
   <div id="hint"><span class="d"></span> Aponte a câmera para o QR code</div>
   <div id="dbg"></div>
 
   <div id="start-overlay">
-    <div class="eb" id="ov-eyebrow">Printer AR</div>
+    <svg id="ov-waves" viewBox="0 0 64 52"><path d="M4 12c8-8 16 8 24 0s16 8 24 0"/><path d="M4 26c8-8 16 8 24 0s16 8 24 0"/><path d="M4 40c8-8 16 8 24 0s16 8 24 0"/></svg>
+    <div class="eb" id="ov-eyebrow">EOS Suite</div>
     <h1 id="ov-title">FLOW</h1>
     <p>Toque para abrir a câmera, depois aponte para o QR code do produto.</p>
     <button id="start-btn">Iniciar experiência</button>
   </div>
 
   <script>
-  /* =========================================================================
-     CATÁLOGO — dados extraídos do PDF "FLOW - Catálogo Produtos V2026.1"
-     Cada QR aponta para ?p=<chave>
-     ========================================================================= */
+  /* ==========================================================================
+     Dados extraídos do PDF "FLOW — Catálogo de Produtos V2026.1 — Printer"
+     ========================================================================== */
   const PRODUCTS = {
     'flow': {
-      eyebrow: 'EOS Suite',
-      name: 'FLOW',
-      sub: 'Tramitação de processos com assinatura digital',
-      video: './assets/flow.mp4',
-      site: 'printerdobrasil.com.br',
-      contacts: 'Curitiba (41) 3387-8613 &nbsp;•&nbsp; Foz do Iguaçu (45) 3026-0363',
-      pills: ['Feito no Brasil', 'Setor Público', 'ICP-Brasil'],
-      features: [
-        { ico:'⚡', t:'Gestão Ágil e Digital',        d:'Organiza solicitações de cidadãos, servidores e empresas com tramitação paralela ou linear.' },
-        { ico:'📊', t:'Monitoramento em Tempo Real',  d:'Acompanhe cada etapa com atualizações instantâneas e visibilidade completa dos fluxos.' },
-        { ico:'✍️', t:'Assinaturas ICP-Brasil',       d:'Assinatura Avançada e Qualificada com validade jurídica e autenticação reforçada.' },
-        { ico:'🔐', t:'Visibilidade e Segurança',     d:'Defina quem visualiza cada processo ou tarefa conforme o perfil do usuário.' },
-        { ico:'🌱', t:'Paperless',                    d:'Cria documentos direto na aplicação, sem impressão — mais economia e sustentabilidade.' },
-        { ico:'📄', t:'Documentação Unificada',       d:'PDF único consolidando todas as interações e os protocolos de assinatura do fluxo.' },
-        { ico:'☁️', t:'Armazenamento Seguro',         d:'Cloud em território brasileiro, com backups diários e disponibilidade contínua.' },
-        { ico:'🔗', t:'Conectividade Sem Limites',    d:'Integrado à plataforma EOS SUITE, com APIs sob demanda e acesso multidevice.' }
+      eyebrow:'Grupo Printer · EOS Suite',
+      name:'FLOW',
+      sub:'Tramitação de Processos com Assinatura Digital',
+      video:'./assets/flow.mp4',
+      mockL:'./assets/mock-monitor.png',
+      mockR:'./assets/mock-devices.png',
+      site:'printerdobrasil.com.br',
+      contacts:'Curitiba (41) 3387-8613 &nbsp;&nbsp;·&nbsp;&nbsp; Foz do Iguaçu (45) 3026-0363',
+      pills:['Feito no Brasil','Setor Público','ICP-Brasil'],
+      features:[
+        {ic:'agil',       t:'Gestão Ágil e Digital',            d:'Organiza solicitações de cidadãos, servidores e empresas, com tramitação paralela ou linear.'},
+        {ic:'monitor',    t:'Monitoramento em Tempo Real',      d:'Acompanhe cada etapa com atualizações instantâneas e visibilidade completa dos fluxos.'},
+        {ic:'assinatura', t:'Assinaturas ICP-Brasil',           d:'Níveis Avançada e Qualificada, com validade jurídica e autenticação reforçada.'},
+        {ic:'seguranca',  t:'Visibilidade e Segurança',         d:'Defina quem visualiza cada processo ou tarefa conforme o perfil do usuário.'},
+        {ic:'paperless',  t:'Paperless e Eficiência',           d:'Criação de documentos direto na aplicação, sem impressão — economia e sustentabilidade.'},
+        {ic:'conect',     t:'Conectividade Sem Limites',        d:'Integrado ao EOS SUITE, com APIs sob demanda e acesso multidevice.'}
       ]
     },
     'demo': {
       eyebrow:'Printer', name:'DEMO', sub:'Experiência de teste', video:'./assets/video.mp4',
-      site:'printerdobrasil.com.br', contacts:'', pills:['Teste'],
-      features:[{ ico:'✨', t:'Demonstração', d:'Troque pelos dados reais do produto.' }]
+      mockL:'', mockR:'', site:'printerdobrasil.com.br', contacts:'', pills:['Teste'],
+      features:[{ic:'agil', t:'Demonstração', d:'Troque pelos dados reais do produto.'}]
     }
   };
 
-  const cfg = PRODUCTS[new URLSearchParams(location.search).get('p')] || PRODUCTS['flow'];
-  const DEBUG = new URLSearchParams(location.search).get('debug') === '1';
+  const qs   = new URLSearchParams(location.search);
+  const cfg  = PRODUCTS[qs.get('p')] || PRODUCTS['flow'];
+  const DEBUG= qs.get('debug')==='1';
 
-  /* ---------- Layout: posições (px) relativas ao centro do QR ----------
-     O QR ocupa aprox. -110..+110. Conteúdo acima e abaixo dele. */
+  /* Posições (px) relativas ao centro do QR. QR ocupa ~ -110..+110 */
   const POS = {
-    'l-title':  [0, -560],
-    'l-video':  [0, -350],
-    'l-feat':   [0, -175],
-    'l-stats':  [0,  165],
-    'l-footer': [0,  245]
+    'l-brand':[0,-600], 'l-video':[0,-372], 'l-feat':[0,-178],
+    'l-mockL':[-330,-300], 'l-mockR':[335,-330],
+    'l-pills':[0,170], 'l-foot':[0,258]
   };
   const REF_QR = 220;
-  for (const [id, [x,y]] of Object.entries(POS)) {
-    const el = document.getElementById(id);
-    el.style.left = x+'px'; el.style.top = y+'px';
-  }
+  for (const [id,[x,y]] of Object.entries(POS)) { const e=document.getElementById(id); e.style.left=x+'px'; e.style.top=y+'px'; }
 
-  /* ---------- Preenche conteúdo ---------- */
+  /* Conteúdo */
   const pv = document.getElementById('pv');
   document.getElementById('b-eyebrow').textContent = cfg.eyebrow;
   document.getElementById('b-name').textContent    = cfg.name;
   document.getElementById('b-sub').textContent     = cfg.sub;
   document.getElementById('ov-title').textContent  = cfg.name;
   document.getElementById('ov-eyebrow').textContent= cfg.eyebrow;
-  document.getElementById('f-site').innerHTML      = cfg.site.replace('printer','<span>printer</span>');
-  document.getElementById('f-ct').innerHTML        = cfg.contacts || '';
+  document.getElementById('f-site').innerHTML      = cfg.site.replace('printer','<b>printer</b>');
+  document.getElementById('f-ct').innerHTML        = cfg.contacts||'';
+  document.getElementById('pills').innerHTML = (cfg.pills||[]).map(p=>`<div class="pill"><span class="dot"></span>${p}</div>`).join('');
 
-  document.getElementById('stats').innerHTML = (cfg.pills||[])
-    .map(p => `<div class="pill"><span class="dot"></span>${p}</div>`).join('');
+  bindImg('mi-l', cfg.mockL, 'l-mockL');
+  bindImg('mi-r', cfg.mockR, 'l-mockR');
+  function bindImg(id, src, layer){
+    const el=document.getElementById(id);
+    if(!src){ document.getElementById(layer).style.display='none'; return; }
+    el.onerror=()=>document.getElementById(layer).style.display='none';
+    el.src=src;
+  }
 
-  pv.addEventListener('error', () => { document.getElementById('videobox').style.display='none'; });
-  if (cfg.video) { pv.src = cfg.video; pv.load(); }
-  else { document.getElementById('videobox').style.display='none'; }
+  pv.addEventListener('error', ()=>{ document.getElementById('videobox').style.display='none'; });
+  if(cfg.video){ pv.src=cfg.video; pv.load(); } else document.getElementById('videobox').style.display='none';
 
-  /* ---------- Carrossel de funcionalidades ---------- */
-  const featBox = document.getElementById('feat');
-  const bar = document.getElementById('bar');
-  const cards = cfg.features.map((f,i) => {
-    const el = document.createElement('div');
-    el.className = 'card' + (i===0?' on':'');
-    el.innerHTML = `<div class="ico">${f.ico}</div><div><h3>${f.t}</h3><p>${f.d}</p></div>`;
+  /* Carrossel de funcionalidades */
+  const featBox=document.getElementById('feat'), bar=document.getElementById('bar');
+  const cards = cfg.features.map((f,i)=>{
+    const el=document.createElement('div');
+    el.className='card'+(i===0?' on':'');
+    el.innerHTML=`<div class="ico"><img src="./assets/icons/${f.ic}.png" alt=""></div>
+                  <div><h3>${f.t}</h3><p>${f.d}</p></div>`;
     featBox.insertBefore(el, featBox.firstChild);
     return el;
   });
-  let fi = 0, cycling = false;
-  function cycle(){
-    cards[fi].classList.remove('on');
-    fi = (fi+1) % cards.length;
-    cards[fi].classList.add('on');
-    bar.classList.remove('run'); void bar.offsetWidth; bar.classList.add('run');
-  }
+  let fi=0, cycling=false;
   function startCycle(){
-    if (cycling || cards.length < 2) return;
-    cycling = true;
-    bar.classList.add('run');
-    setInterval(cycle, 4000);
+    if(cycling || cards.length<2) return; cycling=true; bar.classList.add('run');
+    setInterval(()=>{
+      cards[fi].classList.remove('on'); fi=(fi+1)%cards.length; cards[fi].classList.add('on');
+      bar.classList.remove('run'); void bar.offsetWidth; bar.classList.add('run');
+    }, 4200);
   }
 
-  /* ---------- Câmera + detecção do QR ---------- */
+  /* Câmera + detecção do QR */
   const cam=document.getElementById('cam'), anchor=document.getElementById('anchor'),
         startOv=document.getElementById('start-overlay'), startBtn=document.getElementById('start-btn'),
         soundBtn=document.getElementById('sound-btn'), hint=document.getElementById('hint'), dbg=document.getElementById('dbg');
-
-  const canvas=document.createElement('canvas');
-  const ctx=canvas.getContext('2d',{ willReadFrequently:true });
+  const canvas=document.createElement('canvas'), ctx=canvas.getContext('2d',{willReadFrequently:true});
   let running=false, lastSeen=0, sm={x:0,y:0,size:REF_QR,ang:0,has:false};
 
-  startBtn.addEventListener('click', async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:{ideal:'environment'} }, audio:false });
-      cam.srcObject = stream; await cam.play();
-    } catch(e){ alert('Não foi possível acessar a câmera. Verifique as permissões.'); return; }
-    try { await pv.play(); } catch(e){}
-    startOv.style.display='none'; soundBtn.style.display='block'; hint.style.display='flex';
-    if (DEBUG) dbg.style.display='block';
+  startBtn.addEventListener('click', async ()=>{
+    try{
+      const st=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});
+      cam.srcObject=st; await cam.play();
+    }catch(e){ alert('Não foi possível acessar a câmera. Verifique as permissões.'); return; }
+    try{ await pv.play(); }catch(e){}
+    startOv.style.display='none'; soundBtn.style.display='flex'; hint.style.display='flex';
+    if(DEBUG) dbg.style.display='block';
     running=true; requestAnimationFrame(loop);
   });
 
   function loop(){
     if(!running) return;
     if(cam.readyState>=2 && cam.videoWidth){
-      const vw=cam.videoWidth, vh=cam.videoHeight;
-      const sd=Math.min(1,480/vw), cw=Math.round(vw*sd), chh=Math.round(vh*sd);
+      const vw=cam.videoWidth, vh=cam.videoHeight, sd=Math.min(1,480/vw);
+      const cw=Math.round(vw*sd), chh=Math.round(vh*sd);
       if(canvas.width!==cw){ canvas.width=cw; canvas.height=chh; }
       ctx.drawImage(cam,0,0,cw,chh);
-      const code = jsQR(ctx.getImageData(0,0,cw,chh).data, cw, chh, { inversionAttempts:'dontInvert' });
-
+      const code=jsQR(ctx.getImageData(0,0,cw,chh).data,cw,chh,{inversionAttempts:'dontInvert'});
       if(code){
-        lastSeen=performance.now();
-        const L=code.location, inv=1/sd;
-        const tl={x:L.topLeftCorner.x*inv,y:L.topLeftCorner.y*inv},
-              tr={x:L.topRightCorner.x*inv,y:L.topRightCorner.y*inv},
-              bl={x:L.bottomLeftCorner.x*inv,y:L.bottomLeftCorner.y*inv},
-              br={x:L.bottomRightCorner.x*inv,y:L.bottomRightCorner.y*inv};
+        lastSeen=performance.now(); const L=code.location, inv=1/sd;
+        const tl={x:L.topLeftCorner.x*inv,y:L.topLeftCorner.y*inv}, tr={x:L.topRightCorner.x*inv,y:L.topRightCorner.y*inv},
+              bl={x:L.bottomLeftCorner.x*inv,y:L.bottomLeftCorner.y*inv}, br={x:L.bottomRightCorner.x*inv,y:L.bottomRightCorner.y*inv};
         const cx=(tl.x+tr.x+bl.x+br.x)/4, cy=(tl.y+tr.y+bl.y+br.y)/4;
-        const sw=window.innerWidth, shh=window.innerHeight;
-        const cov=Math.max(sw/vw, shh/vh), offX=(sw-vw*cov)/2, offY=(shh-vh*cov)/2;
-        const S=p=>({x:offX+p.x*cov, y:offY+p.y*cov});
+        const sw=innerWidth, shh=innerHeight, cov=Math.max(sw/vw,shh/vh);
+        const offX=(sw-vw*cov)/2, offY=(shh-vh*cov)/2, S=p=>({x:offX+p.x*cov,y:offY+p.y*cov});
         const c=S({x:cx,y:cy}), stl=S(tl), str=S(tr);
-        const size=Math.hypot(str.x-stl.x, str.y-stl.y);
-        const ang=Math.atan2(str.y-stl.y, str.x-stl.x)*180/Math.PI;
-
-        const k = sm.has?0.35:1;
-        sm.x=lerp(sm.x,c.x,k); sm.y=lerp(sm.y,c.y,k);
-        sm.size=lerp(sm.size,size,k); sm.ang=lerpAng(sm.ang,ang,k); sm.has=true;
-
+        const size=Math.hypot(str.x-stl.x,str.y-stl.y), ang=Math.atan2(str.y-stl.y,str.x-stl.x)*180/Math.PI;
+        const k=sm.has?0.35:1;
+        sm.x=lerp(sm.x,c.x,k); sm.y=lerp(sm.y,c.y,k); sm.size=lerp(sm.size,size,k); sm.ang=lerpA(sm.ang,ang,k); sm.has=true;
         anchor.style.left=sm.x+'px'; anchor.style.top=sm.y+'px';
         anchor.style.transform=`translate(-50%,-50%) rotate(${sm.ang}deg) scale(${sm.size/REF_QR})`;
         if(!anchor.classList.contains('visible')){ anchor.classList.add('visible'); startCycle(); }
@@ -293,23 +297,17 @@
       } else if(performance.now()-lastSeen>400){
         anchor.classList.remove('visible'); sm.has=false; hint.style.display='flex';
       }
-
-      if(DEBUG){
-        dbg.textContent =
-          `QR: ${code?'SIM':'nao'}  size:${sm.size.toFixed(0)}\n`+
-          `video: ${pv.paused?'PAUSADO':'tocando'} rs:${pv.readyState} t:${pv.currentTime.toFixed(1)}\n`+
-          `err: ${pv.error?pv.error.code:'-'}  src:${(pv.currentSrc||'').split('/').pop()}\n`+
-          `cam: ${vw}x${vh}`;
-      }
+      if(DEBUG) dbg.textContent=`QR:${code?'SIM':'nao'} size:${sm.size.toFixed(0)}\nvideo:${pv.paused?'PAUSADO':'tocando'} rs:${pv.readyState}\nerr:${pv.error?pv.error.code:'-'} ${(pv.currentSrc||'').split('/').pop()}\ncam:${vw}x${vh}`;
     }
     requestAnimationFrame(loop);
   }
-  const lerp=(a,b,t)=>a+(b-a)*t;
-  const lerpAng=(a,b,t)=>{ let d=((b-a+540)%360)-180; return a+d*t; };
+  const lerp=(a,b,t)=>a+(b-a)*t, lerpA=(a,b,t)=>{let d=((b-a+540)%360)-180; return a+d*t;};
 
-  soundBtn.addEventListener('click', () => {
-    pv.muted=!pv.muted; soundBtn.textContent=pv.muted?'🔇':'🔊';
-    if(!pv.muted) pv.play().catch(()=>{});
+  soundBtn.addEventListener('click', ()=>{
+    pv.muted=!pv.muted;
+    soundBtn.textContent = pv.muted ? '🔇 Ativar som' : '🔊 Som ligado';
+    soundBtn.classList.toggle('muted', pv.muted);
+    if(!pv.muted){ pv.volume=1; pv.play().catch(()=>{}); }
   });
   </script>
 </body>
