@@ -9,10 +9,8 @@ BASE = "https://nunoakira-bit.github.io/printer-ar/"
 
 # chave do produto -> rotulo exibido embaixo do QR
 PRODUCTS = {
-    "demo":      "DEMO",
-    "produto-a": "Produto A",
-    "produto-b": "Produto B",
-    "produto-c": "Produto C",
+    "demo": "DEMO",
+    "flow": "Flow",
 }
 
 ACCENT = (0, 160, 227)

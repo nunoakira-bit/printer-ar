@@ -83,10 +83,10 @@
   <script>
     /* ===== Catálogo (cada QR aponta para ?p=<chave>) ===== */
     const PRODUCTS = {
-      'demo':      { video:'./assets/video.mp4',      image1:'./assets/mock1.png',      image2:'./assets/mock2.png',      title:'Produto Demo', desc:'Experiência de teste — troque pelos dados reais.' },
-      'produto-a': { video:'./assets/produto-a.mp4',  image1:'./assets/produto-a-1.png', image2:'./assets/produto-a-2.png', title:'Produto A', desc:'Descrição do Produto A.' },
-      'produto-b': { video:'./assets/produto-b.mp4',  image1:'./assets/produto-b-1.png', image2:'./assets/produto-b-2.png', title:'Produto B', desc:'Descrição do Produto B.' },
-      'produto-c': { video:'./assets/produto-c.mp4',  image1:'./assets/produto-c-1.png', image2:'./assets/produto-c-2.png', title:'Produto C', desc:'Descrição do Produto C.' }
+      'demo': { video:'./assets/video.mp4', image1:'./assets/mock1.png', image2:'./assets/mock2.png', title:'Produto Demo', desc:'Experiência de teste — troque pelos dados reais.' },
+
+      // ===== Produtos reais =====
+      'flow': { video:'./assets/flow.mp4', image1:'./assets/flow-1.png', image2:'./assets/flow-2.png', title:'Flow', desc:'' }
     };
     const cfg = PRODUCTS[new URLSearchParams(location.search).get('p')] || PRODUCTS['demo'];
 
