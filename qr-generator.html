@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gerador de QR Code — Printer AR</title>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 520px; margin: 40px auto; padding: 0 20px; color: #0b0f14; }
+    h1 { font-size: 1.3rem; }
+    label { display:block; font-weight:600; margin: 18px 0 6px; }
+    input { width:100%; padding:12px; font-size:1rem; border:1px solid #ccc; border-radius:8px; }
+    button { margin-top:16px; padding:12px 24px; font-size:1rem; font-weight:700; color:#fff; background:#00a0e3; border:0; border-radius:999px; cursor:pointer; }
+    #out { margin-top:24px; text-align:center; }
+    #out canvas { border:1px solid #eee; border-radius:12px; }
+    a.dl { display:inline-block; margin-top:12px; color:#00a0e3; }
+  </style>
+</head>
+<body>
+  <h1>Gerador de QR Code — Printer AR</h1>
+  <p>Cole a URL onde você hospedou a página AR (precisa ser <strong>https://</strong>).</p>
+  <label for="url">URL da experiência AR</label>
+  <input id="url" type="url" placeholder="https://seudominio.com.br/ar/" value="https://seudominio.com.br/ar/" />
+  <button id="gen">Gerar QR Code</button>
+  <div id="out"></div>
+
+  <script>
+    const out = document.getElementById('out');
+    document.getElementById('gen').addEventListener('click', () => {
+      const url = document.getElementById('url').value.trim();
+      if (!url) return;
+      out.innerHTML = '';
+      const canvas = document.createElement('canvas');
+      QRCode.toCanvas(canvas, url, { width: 360, margin: 2, errorCorrectionLevel: 'M' }, (err) => {
+        if (err) { out.textContent = 'Erro: ' + err; return; }
+        out.appendChild(canvas);
+        const a = document.createElement('a');
+        a.className = 'dl';
+        a.textContent = '⬇ Baixar PNG';
+        a.href = canvas.toDataURL('image/png');
+        a.download = 'printer-ar-qrcode.png';
+        out.appendChild(document.createElement('br'));
+        out.appendChild(a);
+      });
+    });
+    document.getElementById('gen').click();
+  </script>
+</body>
+</html>

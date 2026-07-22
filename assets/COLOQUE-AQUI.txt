@@ -1,0 +1,13 @@
+Coloque nesta pasta os dois arquivos da experiencia AR:
+
+1. target.mind  -> a imagem-alvo compilada em:
+   https://hiukim.github.io/mind-ar-js-doc/tools/compile
+
+2. video.mp4    -> o video que vai tocar (MP4 H.264/AAC, de preferencia < 30 MB)
+
+Depois de adicionar os dois, rode:
+   git add assets/target.mind assets/video.mp4
+   git commit -m "Adiciona target e video"
+   git push
+
+Pode apagar este arquivo depois.
