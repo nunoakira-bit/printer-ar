@@ -5,204 +5,206 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Printer AR</title>
 
-  <!-- A-Frame + MindAR (image tracking). Podem ser auto-hospedados: veja o README. -->
   <script src="https://cdn.jsdelivr.net/npm/aframe@1.5.0/dist/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
 
   <style>
     :root {
-      /* Ajuste para as cores oficiais da Printer se quiser */
       --printer-accent: #00a0e3;
       --printer-dark: #0b0f14;
     }
     * { box-sizing: border-box; }
     html, body {
-      margin: 0;
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
+      margin: 0; width: 100%; height: 100%; overflow: hidden;
       font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-      background: var(--printer-dark);
-      color: #fff;
+      background: var(--printer-dark); color: #fff;
     }
 
-    /* Overlay inicial: gesto do usuário libera câmera + áudio */
     #start-overlay {
-      position: fixed;
-      inset: 0;
-      z-index: 30;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-      padding: 24px;
-      background:
-        radial-gradient(120% 120% at 50% 0%, rgba(0,160,227,0.18), transparent 60%),
-        var(--printer-dark);
+      position: fixed; inset: 0; z-index: 30;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      text-align: center; padding: 24px;
+      background: radial-gradient(120% 120% at 50% 0%, rgba(0,160,227,0.18), transparent 60%), var(--printer-dark);
     }
-    #start-overlay h1 { font-size: 1.6rem; margin: 0 0 8px; letter-spacing: 0.5px; }
-    #start-overlay p  { font-size: 1rem; opacity: 0.8; margin: 0 0 32px; max-width: 320px; line-height: 1.5; }
+    #start-overlay h1 { font-size: 1.6rem; margin: 0 0 8px; letter-spacing: .5px; }
+    #start-overlay p  { font-size: 1rem; opacity: .8; margin: 0 0 32px; max-width: 320px; line-height: 1.5; }
     #start-btn {
-      appearance: none;
-      border: 0;
-      border-radius: 999px;
-      padding: 16px 40px;
-      font-size: 1.05rem;
-      font-weight: 700;
-      color: #fff;
-      background: var(--printer-accent);
-      box-shadow: 0 8px 24px rgba(0,160,227,0.4);
-      cursor: pointer;
+      appearance: none; border: 0; border-radius: 999px; padding: 16px 40px;
+      font-size: 1.05rem; font-weight: 700; color: #fff; background: var(--printer-accent);
+      box-shadow: 0 8px 24px rgba(0,160,227,.4); cursor: pointer;
     }
-    #start-btn:active { transform: scale(0.97); }
+    #start-btn:active { transform: scale(.97); }
 
-    /* Dica de escaneamento */
     #scan-hint {
-      position: fixed;
-      left: 50%;
-      bottom: 32px;
-      transform: translateX(-50%);
-      z-index: 20;
-      display: none;
-      align-items: center;
-      gap: 10px;
-      padding: 12px 20px;
-      border-radius: 999px;
-      background: rgba(0,0,0,0.55);
-      backdrop-filter: blur(6px);
-      font-size: 0.9rem;
-      white-space: nowrap;
+      position: fixed; left: 50%; bottom: 32px; transform: translateX(-50%); z-index: 20;
+      display: none; align-items: center; gap: 10px; padding: 12px 20px; border-radius: 999px;
+      background: rgba(0,0,0,.55); backdrop-filter: blur(6px); font-size: .9rem; white-space: nowrap;
     }
-    #scan-hint .dot {
-      width: 10px; height: 10px; border-radius: 50%;
-      background: var(--printer-accent);
-      animation: pulse 1.2s infinite;
-    }
-    @keyframes pulse { 0%,100% { opacity: 0.3; } 50% { opacity: 1; } }
+    #scan-hint .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--printer-accent); animation: pulse 1.2s infinite; }
+    @keyframes pulse { 0%,100% { opacity: .3; } 50% { opacity: 1; } }
 
-    /* Botão de som */
     #sound-btn {
-      position: fixed;
-      right: 16px;
-      top: 16px;
-      z-index: 20;
-      display: none;
-      width: 48px; height: 48px;
-      border: 0; border-radius: 50%;
-      background: rgba(0,0,0,0.55);
-      backdrop-filter: blur(6px);
-      color: #fff;
-      font-size: 1.2rem;
-      cursor: pointer;
+      position: fixed; right: 16px; top: 16px; z-index: 20; display: none;
+      width: 48px; height: 48px; border: 0; border-radius: 50%;
+      background: rgba(0,0,0,.55); backdrop-filter: blur(6px); color: #fff; font-size: 1.2rem; cursor: pointer;
     }
-
-    /* Esconde a UI padrão do MindAR que não usamos */
-    .mindar-ui-overlay { z-index: 10; }
   </style>
 </head>
 <body>
 
-  <!-- Tela inicial -->
   <div id="start-overlay">
-    <h1>Printer AR</h1>
-    <p>Aponte a câmera para a imagem impressa e veja o vídeo ganhar vida.</p>
+    <h1 id="ov-title">Printer AR</h1>
+    <p id="ov-desc">Aponte a câmera para a imagem do produto e explore em realidade aumentada.</p>
     <button id="start-btn">Iniciar experiência</button>
   </div>
 
-  <!-- Dica -->
-  <div id="scan-hint"><span class="dot"></span> Aponte para a imagem</div>
-
-  <!-- Alternar som -->
+  <div id="scan-hint"><span class="dot"></span> Aponte para a imagem do produto</div>
   <button id="sound-btn" aria-label="Ativar som">🔇</button>
 
-  <!-- Cena AR -->
   <a-scene
-    mindar-image="imageTargetSrc: ./assets/target.mind; autoStart: false; uiScanning: no; uiLoading: no; uiError: no;"
+    id="scene"
     color-space="sRGB"
     renderer="colorManagement: true, physicallyCorrectLights"
     vr-mode-ui="enabled: false"
     device-orientation-permission-ui="enabled: false"
   >
-    <a-assets>
-      <!-- Troque pelo seu vídeo. muted + playsinline é obrigatório para autoplay no mobile -->
-      <video
-        id="ar-video"
-        src="./assets/video.mp4"
-        preload="auto"
-        loop
-        muted
-        playsinline
-        webkit-playsinline
-        crossorigin="anonymous"
-      ></video>
-    </a-assets>
+    <a-assets id="assets"><!-- vídeo e imagens injetados via JS --></a-assets>
 
     <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
-    <!-- targetIndex: 0 = primeira (e única) imagem do target.mind -->
+    <!-- Tudo aqui dentro é ancorado à imagem. Coordenadas: 1 unidade = largura do alvo. -->
     <a-entity id="target" mindar-image-target="targetIndex: 0">
-      <!-- width/height = proporção do vídeo. 16:9 => 1 x 0.5625. Ajuste se necessário. -->
-      <a-video
-        src="#ar-video"
-        width="1"
-        height="0.5625"
-        position="0 0 0"
-        rotation="0 0 0"
-      ></a-video>
+
+      <!-- Container que flutua suavemente (bobbing) -->
+      <a-entity id="floaty"
+        animation__bob="property: position; dir: alternate; dur: 2600; easing: easeInOutSine; loop: true; from: 0 0 0; to: 0 0.04 0">
+
+        <!-- VÍDEO principal (acima do produto) -->
+        <a-video id="ar-video" src="#vid"
+          width="1" height="0.5625" position="0 0.9 0"
+          scale="0 0 0"
+          animation__in="property: scale; startEvents: reveal; dur: 500; easing: easeOutBack; to: 1 1 1"></a-video>
+
+        <!-- MOCKUP esquerdo -->
+        <a-image id="mock-left" src="#img1"
+          width="0.5" height="0.5" position="-0.95 0.25 0" rotation="0 18 0"
+          scale="0 0 0"
+          animation__in="property: scale; startEvents: reveal; delay: 150; dur: 500; easing: easeOutBack; to: 1 1 1"></a-image>
+
+        <!-- MOCKUP direito -->
+        <a-image id="mock-right" src="#img2"
+          width="0.5" height="0.5" position="0.95 0.25 0" rotation="0 -18 0"
+          scale="0 0 0"
+          animation__in="property: scale; startEvents: reveal; delay: 250; dur: 500; easing: easeOutBack; to: 1 1 1"></a-image>
+
+        <!-- TÍTULO (texto flutuante) -->
+        <a-entity id="ar-title"
+          text="value: ; color: #FFFFFF; align: center; width: 2.2; font: roboto; wrapCount: 22"
+          position="0 1.55 0"
+          scale="0 0 0"
+          animation__in="property: scale; startEvents: reveal; delay: 350; dur: 400; easing: easeOutBack; to: 1 1 1"></a-entity>
+
+        <!-- SUBTÍTULO / descrição -->
+        <a-entity id="ar-desc"
+          text="value: ; color: #9fd8f2; align: center; width: 2.0; font: roboto; wrapCount: 34"
+          position="0 -0.55 0"
+          scale="0 0 0"
+          animation__in="property: scale; startEvents: reveal; delay: 450; dur: 400; easing: easeOutBack; to: 1 1 1"></a-entity>
+
+        <!-- Barrinha de destaque atrás do título -->
+        <a-plane position="0 1.55 -0.02" width="1.6" height="0.28" color="#00a0e3" opacity="0.18" radius="0.05"
+          scale="0 0 0"
+          animation__in="property: scale; startEvents: reveal; delay: 300; dur: 400; to: 1 1 1"></a-plane>
+
+      </a-entity>
     </a-entity>
   </a-scene>
 
   <script>
-    const sceneEl   = document.querySelector('a-scene');
-    const startOv   = document.getElementById('start-overlay');
-    const startBtn  = document.getElementById('start-btn');
-    const scanHint  = document.getElementById('scan-hint');
-    const soundBtn  = document.getElementById('sound-btn');
-    const video     = document.getElementById('ar-video');
-    const target    = document.getElementById('target');
+    /* =========================================================================
+       CONFIGURAÇÃO DOS PRODUTOS
+       Cada QR aponta para  ...?p=<chave>  e carrega os assets abaixo.
+       Troque os caminhos pelos seus arquivos reais em /assets.
+       ========================================================================= */
+    const PRODUCTS = {
+      'demo': {
+        mind:     './assets/target.mind',
+        video:    './assets/video.mp4',
+        image1:   './assets/mock1.png',
+        image2:   './assets/mock2.png',
+        title:    'Nome do Produto',
+        desc:     'Descrição curta do produto — material, aplicação, diferencial.'
+      },
+      // 'produto-a': {
+      //   mind: './assets/produto-a.mind', video: './assets/produto-a.mp4',
+      //   image1: './assets/produto-a-1.png', image2: './assets/produto-a-2.png',
+      //   title: 'Produto A', desc: 'Descrição do Produto A.'
+      // },
+    };
 
-    let arSystem;
-    let targetVisible = false;
+    // Lê ?p=chave da URL (default: 'demo')
+    const params = new URLSearchParams(location.search);
+    const key = params.get('p') || 'demo';
+    const cfg = PRODUCTS[key] || PRODUCTS['demo'];
+
+    // Injeta assets e configura o alvo ANTES de iniciar o MindAR
+    const assets   = document.getElementById('assets');
+    const targetEl = document.getElementById('target');
+    const scene    = document.getElementById('scene');
+
+    assets.innerHTML = `
+      <video id="vid" src="${cfg.video}" preload="auto" loop muted playsinline webkit-playsinline crossorigin="anonymous"></video>
+      <img id="img1" src="${cfg.image1}" crossorigin="anonymous" />
+      <img id="img2" src="${cfg.image2}" crossorigin="anonymous" />
+    `;
+    document.getElementById('ar-title').setAttribute('text', 'value', cfg.title);
+    document.getElementById('ar-desc').setAttribute('text', 'value', cfg.desc);
+    document.getElementById('ov-title').textContent = cfg.title;
+    scene.setAttribute('mindar-image',
+      `imageTargetSrc: ${cfg.mind}; autoStart: false; uiScanning: no; uiLoading: no; uiError: no;`);
+
+    // ---- UI / fluxo ----
+    const startOv  = document.getElementById('start-overlay');
+    const startBtn = document.getElementById('start-btn');
+    const scanHint = document.getElementById('scan-hint');
+    const soundBtn = document.getElementById('sound-btn');
+    const video    = () => document.getElementById('vid');
+    const floaty   = document.getElementById('floaty');
+
+    let arSystem, targetVisible = false;
 
     startBtn.addEventListener('click', async () => {
-      // Gesto do usuário: libera reprodução de vídeo e (depois) áudio
       startOv.style.display = 'none';
       scanHint.style.display = 'flex';
       soundBtn.style.display = 'block';
-
-      arSystem = sceneEl.systems['mindar-image-system'];
-      try {
-        await arSystem.start(); // pede permissão da câmera
-      } catch (e) {
-        alert('Não foi possível acessar a câmera. Verifique as permissões do navegador.');
-        return;
-      }
-
-      // "Aquece" o vídeo para reprodução instantânea quando o alvo aparecer
-      try { await video.play(); video.pause(); video.currentTime = 0; } catch (e) {}
+      arSystem = scene.systems['mindar-image-system'];
+      try { await arSystem.start(); }
+      catch (e) { alert('Não foi possível acessar a câmera. Verifique as permissões do navegador.'); return; }
+      try { const v = video(); await v.play(); v.pause(); v.currentTime = 0; } catch (e) {}
     });
 
-    // Alvo encontrado -> toca
-    target.addEventListener('targetFound', () => {
+    targetEl.addEventListener('targetFound', () => {
       targetVisible = true;
       scanHint.style.display = 'none';
-      video.play().catch(() => {});
+      // dispara as animações de entrada de todos os elementos
+      floaty.querySelectorAll('[animation__in]').forEach(el => el.emit('reveal'));
+      video().play().catch(() => {});
     });
 
-    // Alvo perdido -> pausa
-    target.addEventListener('targetLost', () => {
+    targetEl.addEventListener('targetLost', () => {
       targetVisible = false;
       scanHint.style.display = 'flex';
-      video.pause();
+      // reseta para reaparecer com animação na próxima detecção
+      floaty.querySelectorAll('[animation__in]').forEach(el => el.setAttribute('scale', '0 0 0'));
+      video().pause();
     });
 
-    // Liga/desliga som (precisa de gesto para o áudio no iOS)
     soundBtn.addEventListener('click', () => {
-      video.muted = !video.muted;
-      soundBtn.textContent = video.muted ? '🔇' : '🔊';
-      soundBtn.setAttribute('aria-label', video.muted ? 'Ativar som' : 'Desativar som');
-      if (!video.muted && targetVisible) video.play().catch(() => {});
+      const v = video();
+      v.muted = !v.muted;
+      soundBtn.textContent = v.muted ? '🔇' : '🔊';
+      soundBtn.setAttribute('aria-label', v.muted ? 'Ativar som' : 'Desativar som');
+      if (!v.muted && targetVisible) v.play().catch(() => {});
     });
   </script>
 </body>
