@@ -9,8 +9,12 @@
     *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
     html,body{ margin:0; width:100%; height:100%; overflow:hidden;
       font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; background:var(--ink2); color:#fff; }
-    #ar{ position:fixed; inset:0; }
-    #ar canvas, #ar video{ width:100% !important; height:100% !important; object-fit:cover; }
+    /* NAO mexer no tamanho do canvas nem do video daqui.
+       O MindAR dimensiona o video em px e o desloca com left/top negativos para
+       centralizar o corte, e ajusta a matriz de projecao para casar com isso.
+       Um "width:100% !important" sobrescreve a largura calculada mas nao o left
+       negativo -- a imagem sai do lugar e o overlay aparece deslocado. */
+    #ar{ position:fixed; inset:0; overflow:hidden; }
 
     @keyframes dotP{ 0%,100%{transform:scale(1);opacity:.5} 50%{transform:scale(1.5);opacity:1} }
     @keyframes sweep{ from{transform:translateX(-130%)} to{transform:translateX(340%)} }
