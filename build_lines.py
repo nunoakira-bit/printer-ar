@@ -19,6 +19,43 @@ POS = {
 }
 NEAR = 200          # raio para considerar que a ponta encosta na bolinha
 
+# Grafo de fluxo canonico (fonte -> destino), lido das setas do impresso.
+# Define para que lado a energia corre em cada conector, independente de qual
+# bolinha a camera detectou.
+EDGES = {
+    ("doc", "scanner"), ("doc", "multi"),
+    ("scanner", "computador"), ("scanner", "air"),
+    ("multi", "air"),
+    ("computador", "airsafe"), ("computador", "print3d"),
+    ("airsafe", "air"), ("airsafe", "flow"), ("airsafe", "siga"),
+    ("air", "flow"), ("air", "nfc"),
+    ("flow", "siga"),
+    ("cidadao", "flow"),
+    ("siga", "descarte"), ("siga", "rdc"),
+    ("nfc", "impressora"),
+    ("impressora", "doc"),
+}
+# ordem a jusante do ciclo: fallback quando o par nao casa uma aresta direta
+# (a energia corre do indice menor para o maior)
+RANK = {k: i for i, k in enumerate(
+    ["doc", "scanner", "multi", "computador", "airsafe", "air", "flow",
+     "cidadao", "siga", "descarte", "rdc", "nfc", "impressora", "print3d"])}
+
+
+def flow_dir(p0, p1):
+    """+1 se a energia corre de pts[0] para pts[-1]; -1 no sentido inverso.
+
+    Resolve as pontas a bolinha mais proxima (sem corte) e cruza com o grafo.
+    Sem aresta direta, cai para a ordem a jusante do ciclo.
+    """
+    e0 = min(POS, key=lambda k: math.dist(p0, POS[k]))
+    e1 = min(POS, key=lambda k: math.dist(p1, POS[k]))
+    if (e0, e1) in EDGES:
+        return 1, e0, e1
+    if (e1, e0) in EDGES:
+        return -1, e0, e1
+    return (1 if RANK[e0] <= RANK[e1] else -1), e0, e1
+
 page = fitz.open(PDF)[0]
 
 def flatten(d):
@@ -80,8 +117,12 @@ for d in page.get_drawings():
 
     r, g, b = col
     kind = "loop" if (r > .5 and g < .3) else ("print" if (r > .7 and b > .8 and g < .8) else "flow")
+    dir_, e0, e1 = flow_dir(pts[0], pts[-1])
     lines.append({
         "a": ends["a"], "b": ends["b"], "kind": kind,
+        "dir": dir_,          # +1: pulso corre pts[0]->pts[-1]; -1: inverso
+        "src": e0 if dir_ == 1 else e1,   # so para conferencia/depuracao
+        "dst": e1 if dir_ == 1 else e0,
         "len": round(length, 1),
         "pts": [[round(x, 1), round(y, 1)] for x, y in pts],
     })

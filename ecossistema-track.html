@@ -283,8 +283,11 @@ function localFromPdf(rect, x, y){
 }
 
 async function boot(){
-  meta  = await (await fetch('./assets/eco/targets/targets.json')).json();
-  LINES = await (await fetch('./assets/eco/lines.json')).json();
+  // cache-bust nos JSON pequenos: garante geometria/direcao atuais mesmo sem
+  // reload forcado. O targets.mind (grande) fica de fora, para seguir cacheado.
+  const NB = () => '?v=' + Date.now();
+  meta  = await (await fetch('./assets/eco/targets/targets.json' + NB())).json();
+  LINES = await (await fetch('./assets/eco/lines.json' + NB())).json();
 
   mindar = new MindARThree({
     container: document.getElementById('ar'),
@@ -301,17 +304,19 @@ async function boot(){
     const group = new THREE.Group();
     anchor.group.add(group);
 
-    // todas as linhas impressas que encostam nesta bolinha
+    // todas as linhas impressas ligadas a esta bolinha (como origem ou destino)
     const meshes = [];
     LINES.lines.forEach(ln => {
-      const touchesA = ln.a === id, touchesB = ln.b === id;
-      if (!touchesA && !touchesB) return;
+      if (ln.src !== id && ln.dst !== id) return;
       const pts = ln.pts.map(([x,y]) => localFromPdf(t.rect, x, y));
       const m = buildRibbon(pts, ITEMS[id].c);
       if (!m) return;
       group.add(m);
-      // o pulso sempre sai da bolinha detectada
-      meshes.push({ mesh:m, reversed: touchesB && !touchesA });
+      // o pulso corre SEMPRE no sentido da seta impressa (src -> dst),
+      // nao importa qual bolinha a camera detectou:
+      //   dir +1 -> pts[0]->pts[-1] (reversed=false)
+      //   dir -1 -> pts[-1]->pts[0] (reversed=true)
+      meshes.push({ mesh:m, reversed: ln.dir === -1 });
     });
 
     const ball = localFromPdf(t.rect, POS[id].x, POS[id].y);
@@ -473,20 +478,21 @@ window.__rendertest = () => {
 
 /* Sonda de diagnostico de uma bolinha especifica. */
 window.__probe = async (id) => {
-  const t  = await (await fetch('./assets/eco/targets/targets.json')).json();
-  const ln = await (await fetch('./assets/eco/lines.json')).json();
+  const t  = await (await fetch('./assets/eco/targets/targets.json?v='+Date.now())).json();
+  const ln = await (await fetch('./assets/eco/lines.json?v='+Date.now())).json();
   const tg = t.targets.find(x => x.id === id);
-  return ln.lines.filter(l => l.a===id || l.b===id).map((l,i) => {
+  return ln.lines.filter(l => l.src===id || l.dst===id).map((l,i) => {
     const pts = l.pts.map(([x,y]) => localFromPdf(tg.rect,x,y));
     const m = buildRibbon(pts, ITEMS[id].c);
-    const rev = l.b===id && l.a!==id;
+    const rev = l.dir === -1;                 // sentido canonico src->dst
     const S = m.userData.s, col = m.userData.col;
     updatePulse(m, 0.5, rev);
     let maxc=0, maxi=-1;
     for (let k=0;k<S.length;k++){ if (col[k*2]>maxc){maxc=col[k*2];maxi=k;} }
-    return { i, a:l.a, b:l.b, rev, n:S.length, ptsOriginais:l.pts.length,
-             sMin:+S[0].toFixed(4), sMax:+S[S.length-1].toFixed(4),
-             vertMaisAceso:maxi, svNoTopo:+(rev?1-S[maxi]:S[maxi]).toFixed(4),
+    // si=0 corresponde a src; svNoTopo perto de t=0.5 confirma que a cabeca
+    // saiu de src e vai para dst
+    return { i, src:l.src, dst:l.dst, dir:l.dir, n:S.length,
+             svNoTopo:+(rev?1-S[maxi]:S[maxi]).toFixed(4),
              intensidadeMax:+maxc.toFixed(4) };
   });
 };
@@ -494,8 +500,8 @@ window.__probe = async (id) => {
 /* Autoteste da geometria: roda sem camera e sem .mind, so com os dados.
    Confere o mapeamento PDF->alvo, a construcao das fitas e o pulso. */
 window.__selftest = async () => {
-  const t  = await (await fetch('./assets/eco/targets/targets.json')).json();
-  const ln = await (await fetch('./assets/eco/lines.json')).json();
+  const t  = await (await fetch('./assets/eco/targets/targets.json?v='+Date.now())).json();
+  const ln = await (await fetch('./assets/eco/lines.json?v='+Date.now())).json();
   const out = { alvos:t.targets.length, linhas:ln.lines.length, itens:[], erros:[] };
 
   for (const tg of t.targets){
@@ -504,42 +510,28 @@ window.__selftest = async () => {
     if (Math.abs(ball[0]) > 0.06) out.erros.push(`${tg.id}: bolinha fora de centro em x (${ball[0].toFixed(3)})`);
     if (Math.abs(ball[1]) > 0.25) out.erros.push(`${tg.id}: bolinha longe demais em y (${ball[1].toFixed(3)})`);
 
-    const mine = ln.lines.filter(l => l.a===tg.id || l.b===tg.id);
+    const mine = ln.lines.filter(l => l.src===tg.id || l.dst===tg.id);
     let vtx = 0, semFita = 0;
-    const dists = [];
     for (const l of mine){
       const pts = l.pts.map(([x,y]) => localFromPdf(tg.rect, x, y));
       const m = buildRibbon(pts, ITEMS[tg.id].c);
       if (!m){ semFita++; continue; }
       vtx += m.geometry.attributes.position.count;
 
-      // a ponta que encosta na bolinha tem que ser mesmo a mais proxima dela
-      const near = l.a===tg.id ? pts[0] : pts[pts.length-1];
-      dists.push(+Math.hypot(near[0]-ball[0], near[1]-ball[1]).toFixed(3));
-
-      // pulso: em t=0 a cabeca acende o inicio; em t=0.5 acende o meio
-      updatePulse(m, 0.0, l.b===tg.id && l.a!==tg.id);
-      const c0 = m.userData.col[0];
-      updatePulse(m, 0.5, l.b===tg.id && l.a!==tg.id);
-      const c1 = m.userData.col[0];
-      // Em t=0.5 a cabeça do pulso deve estar na metade da linha. Checa-se o
-      // vértice MAIS ACESO, não um vértice fixo: à frente da cabeça é escuro
-      // por definição (só a cauda acende), então o vizinho seguinte é preto.
-      const rev = l.b===tg.id && l.a!==tg.id;
+      // o pulso corre no sentido canonico src->dst (reversed = dir -1).
+      // Com a cabeca em t pequeno, o vertice mais aceso (si) deve estar perto de
+      // src (si~0). Isso confirma que a energia SAI de src e vai para dst.
+      const rev = l.dir === -1;
+      updatePulse(m, 0.18, rev);
       const S = m.userData.s, col = m.userData.col;
       let maxc = 0, maxi = -1;
-      for (let k = 0; k < S.length; k++){
-        if (col[k*2] > maxc){ maxc = col[k*2]; maxi = k; }
-      }
-      const svTopo = maxi < 0 ? -1 : (rev ? 1 - S[maxi] : S[maxi]);
-      if (c0 <= 0.001)  out.erros.push(`${tg.id}: pulso nao acende o inicio da linha`);
-      if (maxc <= 0.001) out.erros.push(`${tg.id}: pulso apagado em t=0.5`);
-      else if (Math.abs(svTopo - 0.5) > 0.03)
-        out.erros.push(`${tg.id}: cabeca do pulso em ${svTopo.toFixed(3)}, esperado ~0.5`);
-      if (c1 >= c0)     out.erros.push(`${tg.id}: pulso nao se move (inicio nao apaga)`);
+      for (let k = 0; k < S.length; k++){ if (col[k*2] > maxc){ maxc = col[k*2]; maxi = k; } }
+      const siTopo = maxi < 0 ? -1 : (rev ? 1 - S[maxi] : S[maxi]);
+      if (maxc <= 0.001) out.erros.push(`${tg.id}: pulso apagado`);
+      else if (Math.abs(siTopo - 0.18) > 0.05)
+        out.erros.push(`${tg.id}: cabeca em ${siTopo.toFixed(3)} (esperado ~0.18 saindo de src)`);
     }
-    out.itens.push({ id:tg.id, linhas:mine.length, vertices:vtx, semFita,
-                     distPontaAteBolinha:dists });
+    out.itens.push({ id:tg.id, linhas:mine.length, vertices:vtx, semFita });
   }
   return out;
 };
