@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Printer AR — Ecossistema da Informação</title>
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+  <style>
+    :root{ --y:#FDB930; --ink:#16181D; --ink2:#0E1014; --acc:#00A0E3; }
+    *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+    html,body{ margin:0; width:100%; height:100%; overflow:hidden;
+      font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; background:var(--ink2); color:#fff; }
+    #cam{ position:fixed; inset:0; width:100%; height:100%; object-fit:cover; z-index:0; background:#000; }
+
+    /* ============ âncora sobre o QR da bolinha ============ */
+    #anchor{ position:fixed; left:0; top:0; z-index:2; width:0; height:0;
+      transform:translate(-50%,-50%); opacity:0; transition:opacity .28s ease; pointer-events:none; }
+    #anchor.visible{ opacity:1; }
+    .layer{ position:absolute; left:0; top:0; }
+    .layer > .anim{ position:absolute; left:0; top:0; transform:translate(-50%,-50%); }
+
+    @keyframes fadeUp { from{opacity:0; transform:translate(-50%,-50%) translateY(34px) scale(.92)}
+                        to  {opacity:1; transform:translate(-50%,-50%) translateY(0) scale(1)} }
+    @keyframes floatY { 0%,100%{margin-top:0} 50%{margin-top:-7px} }
+    @keyframes glowPls{ 0%,100%{box-shadow:0 18px 44px rgba(0,0,0,.6), 0 0 0 2px var(--c), 0 0 26px color-mix(in srgb, var(--c) 45%, transparent)}
+                        50%    {box-shadow:0 18px 52px rgba(0,0,0,.66),0 0 0 3px var(--c), 0 0 50px color-mix(in srgb, var(--c) 75%, transparent)} }
+    @keyframes sweep  { from{transform:translateX(-130%)} to{transform:translateX(340%)} }
+    @keyframes dotP   { 0%,100%{transform:scale(1);opacity:.5} 50%{transform:scale(1.5);opacity:1} }
+
+    #anchor.visible .anim{ animation:fadeUp .6s cubic-bezier(.2,.85,.25,1) backwards; }
+    #anchor.visible #l-video .anim{ animation-delay:0s }
+    #anchor.visible #l-rays  .anim{ animation-delay:.14s }
+
+    /* ---- player de vídeo acima da bolinha ---- */
+    .videobox{ width:430px; border-radius:22px; overflow:hidden; position:relative; background:#0d1218;
+      animation:glowPls 3.6s ease-in-out infinite; }
+    .videobox video{ display:block; width:100%; height:auto; }
+    .videobox .sheen{ position:absolute; top:0; bottom:0; width:74px; pointer-events:none;
+      background:linear-gradient(100deg,transparent,rgba(255,255,255,.26),transparent); animation:sweep 5s ease-in-out infinite 1.2s; }
+    .videobox .tag{ position:absolute; left:14px; top:14px; font-size:13px; font-weight:900; letter-spacing:1.6px;
+      padding:6px 14px; border-radius:999px; background:var(--c); color:#0E1014; text-transform:uppercase; }
+    .videobox.empty{ display:none; }
+
+    /* ---- caminhos possíveis, irradiando da bolinha ---- */
+    #rays svg{ display:block; }
+    .ray{ fill:none; stroke-linecap:round; }
+    .ray.out{ stroke:var(--c); stroke-width:9; }
+    .ray.in { stroke:#8A93A3; stroke-width:6; stroke-dasharray:14 16; opacity:.75; }
+    /* o traço só anima depois que --L é medido (classe .draw aplicada via JS) */
+    .ray.draw{ stroke-dasharray:var(--L); stroke-dashoffset:var(--L);
+      animation:ray-draw .8s cubic-bezier(.3,.8,.3,1) forwards; }
+    .ray.in.draw{ animation-name:ray-draw-in; }
+    @keyframes ray-draw   { to{ stroke-dashoffset:0 } }
+    @keyframes ray-draw-in{ to{ stroke-dashoffset:0 } }
+    .ray-dot{ fill:var(--c); }
+    .ray-dot.in{ fill:#8A93A3; }
+    .ray-pill{ fill:var(--c); }
+    .ray-pill.in{ fill:rgba(20,22,27,.88); stroke:rgba(255,255,255,.22); stroke-width:2; }
+    .ray-label{ font-size:30px; font-weight:900; fill:#0E1014; dominant-baseline:middle; }
+    .ray-label.in{ fill:#C9D3DC; font-weight:700; }
+    .ray-dist{ font-size:22px; font-weight:700; fill:rgba(14,16,20,.62); dominant-baseline:middle; }
+    .ray-dist.in{ fill:#8A93A3; }
+    .fl-ring{ fill:none; stroke:var(--c); stroke-width:3; }
+
+    /* ============ folha inferior fixa (texto estável) ============ */
+    #sheet{ position:fixed; left:0; right:0; bottom:0; z-index:24; display:none;
+      padding:12px 12px calc(12px + env(safe-area-inset-bottom));
+      background:linear-gradient(180deg,transparent,rgba(0,0,0,.78) 34%); }
+    .panel{ border-radius:20px; padding:16px 18px; border:1px solid color-mix(in srgb, var(--c) 45%, transparent);
+      background:linear-gradient(150deg, rgba(22,24,29,.95), rgba(14,16,20,.9)); backdrop-filter:blur(12px);
+      max-height:40vh; overflow-y:auto; }
+    .panel h3{ margin:0 0 6px; font-size:19px; font-weight:900; color:var(--c); }
+    .panel p{ margin:0; font-size:14.5px; line-height:1.5; color:#E6EAEF; }
+    .panel ul{ margin:12px 0 0; padding:12px 0 0; list-style:none; display:grid; gap:6px;
+      border-top:1px solid rgba(255,255,255,.14); }
+    .panel li{ font-size:13.5px; line-height:1.4; color:#C9D3DC; display:flex; gap:9px; align-items:baseline; }
+    .panel li::before{ content:""; width:6px; height:6px; flex:none; border-radius:50%; background:var(--c); transform:translateY(-1px); }
+    #picker{ display:flex; gap:7px; overflow-x:auto; padding:9px 2px 2px; scrollbar-width:none; }
+    #picker::-webkit-scrollbar{ display:none }
+    .chip{ flex:0 0 auto; border:1px solid rgba(255,255,255,.16); border-radius:999px; padding:9px 15px;
+      font-size:12.5px; font-weight:800; color:#C9D3DC; background:rgba(22,24,29,.9); cursor:pointer; white-space:nowrap; }
+    .chip.on{ background:var(--c); color:#0E1014; border-color:var(--c); }
+    .chip:active{ transform:scale(.96) }
+
+    #sound-btn{ position:fixed; right:14px; top:14px; z-index:26; display:none; align-items:center; gap:7px;
+      height:44px; padding:0 16px; border:0; border-radius:999px; background:var(--y); color:var(--ink);
+      font-size:13.5px; font-weight:900; cursor:pointer; box-shadow:0 8px 22px rgba(0,0,0,.45); }
+    #sound-btn.muted{ animation:dotP 1.9s ease-in-out infinite }
+    #hint{ position:fixed; left:50%; top:46%; transform:translate(-50%,-50%); z-index:20; display:none;
+      align-items:center; gap:10px; padding:14px 22px; border-radius:999px; background:rgba(0,0,0,.7);
+      backdrop-filter:blur(6px); font-size:.92rem; white-space:nowrap; }
+    #hint .d{ width:10px; height:10px; border-radius:50%; background:var(--y); animation:dotP 1.3s infinite }
+
+    #start-overlay{ position:fixed; inset:0; z-index:30; display:flex; flex-direction:column; align-items:center;
+      justify-content:center; text-align:center; padding:24px;
+      background:radial-gradient(120% 120% at 50% 0%, rgba(0,160,227,.22), transparent 60%), var(--ink2); }
+    #start-overlay .eb{ font-size:12px; letter-spacing:4px; text-transform:uppercase; color:var(--acc); font-weight:800 }
+    #start-overlay h1{ font-size:2.5rem; font-weight:900; margin:6px 0 12px; letter-spacing:-1.5px; line-height:1.05 }
+    #start-overlay p{ font-size:1rem; opacity:.82; margin:0 0 34px; max-width:340px; line-height:1.55 }
+    #start-btn{ border:0; border-radius:999px; padding:17px 44px; font-size:1.05rem; font-weight:900; color:#0E1014;
+      background:var(--acc); box-shadow:0 10px 30px rgba(0,160,227,.45); cursor:pointer }
+    #dbg{ position:fixed; left:8px; top:8px; z-index:40; display:none; font:11px/1.4 monospace;
+      background:rgba(0,0,0,.75); padding:6px 9px; border-radius:6px; white-space:pre }
+  </style>
+</head>
+<body>
+
+  <video id="cam" autoplay muted playsinline webkit-playsinline></video>
+
+  <div id="anchor">
+    <div class="layer" id="l-video"><div class="anim">
+      <div class="videobox" id="videobox">
+        <span class="tag" id="v-tag">Em ação</span>
+        <video id="pv" loop muted playsinline webkit-playsinline></video>
+        <span class="sheen"></span>
+      </div>
+    </div></div>
+
+    <!-- caminhos possíveis, desenhados nas direções reais do backdrop impresso -->
+    <div class="layer" id="l-rays"><div class="anim"><div id="rays"></div></div></div>
+  </div>
+
+  <button id="sound-btn" class="muted">🔇 Ativar som</button>
+  <div id="hint"><span class="d"></span> Aponte a câmera para o QR de um item</div>
+  <div id="dbg"></div>
+
+  <div id="sheet">
+    <div class="panel">
+      <h3 id="p-title"></h3>
+      <p id="p-desc"></p>
+      <ul id="p-list"></ul>
+    </div>
+    <div id="picker"></div>
+  </div>
+
+  <div id="start-overlay">
+    <div class="eb">Grupo Printer · Catálogo 2026</div>
+    <h1>Ecossistema<br>da Informação</h1>
+    <p>Toque para abrir a câmera e aponte para o QR ao lado de qualquer item do backdrop.</p>
+    <button id="start-btn">Iniciar experiência</button>
+  </div>
+
+  <script>
+  /* =========================================================================
+     Os 14 itens do ciclo de vida da informação (backdrop 2026).
+     `from` / `to` reproduzem as setas do diagrama impresso.
+     ========================================================================= */
+  const ITEMS = {
+    doc: { name:'Documento físico', sub:'O ponto de partida', c:'#7A2140',
+      desc:'Pilhas de papel circulando pela mesa: documentos que se perdem, informação que ninguém acha e retrabalho que ninguém mede. É onde a maioria das instituições ainda está.',
+      li:['Sem rastreabilidade','Sem prazo definido','Sem controle de acesso'],
+      from:[['impressora','Retorno ao início do ciclo']],
+      to:[['scanner','Digitalização'],['multi','Digitalização']] },
+
+    scanner: { name:'Scanners', sub:'O primeiro passo para a modernização', c:'#B06FD6',
+      desc:'Converte o acervo físico em arquivo digital com qualidade de captura adequada a cada tipo de documento.',
+      li:['Digitalização planetária','Digitalização normal','Digitalização 3D'],
+      from:[['doc','Digitalização']],
+      to:[['computador','Armazenamento local'],['air','Envio para a nuvem']] },
+
+    multi: { name:'Multifuncionais', sub:'Digitalização no próprio setor', c:'#B06FD6',
+      desc:'Leva a captura para dentro do setor: o servidor digitaliza no equipamento que já usa, sem depender de uma central.',
+      li:['Digitalização planetária','Digitalização normal','Digitalização 3D'],
+      from:[['doc','Digitalização']],
+      to:[['air','Digitalização']] },
+
+    computador: { name:'Computadores', sub:'Onde o arquivo nasce', c:'#5B6270',
+      desc:'O arquivo de trabalho do usuário. É o ponto mais frágil do ciclo: o que fica só no desktop não tem backup, prazo nem auditoria.',
+      li:['Arquivos de trabalho do usuário','Pastas locais monitoradas pelo AIR SAFE'],
+      from:[['scanner','Armazenamento local']],
+      to:[['airsafe','Upload de arquivos na nuvem'],['print3d','Envio de impressão 3D']] },
+
+    airsafe: { name:'AIR SAFE', sub:'A ponte entre o desktop e a nuvem', c:'#128FA8',
+      desc:'Vigia as pastas do computador do usuário, detecta alterações nos arquivos e sincroniza com o Air — sem depender da disciplina de ninguém.',
+      li:['Verifica alterações dos arquivos do usuário','Espelha as pastas locais no Air','Upload contínuo para a nuvem'],
+      from:[['computador','Upload de arquivos na nuvem']],
+      to:[['air','Sincronização'],['flow','Sincronização'],['siga','Sincronização']] },
+
+    print3d: { name:'Impressoras 3D', sub:'Quando o arquivo vira objeto', c:'#8E5FD3',
+      desc:'Produção de peças sob demanda a partir dos arquivos do usuário, dentro do mesmo controle de saldo e autorização.',
+      li:['Produção sob demanda','Envio direto do computador'],
+      from:[['computador','Envio de impressão 3D']],
+      to:[] },
+
+    air: { name:'Air', sub:'Armazenamento em nuvem', c:'#E8382F',
+      desc:'O repositório único do acervo digital. Tudo que foi capturado — pelo scanner, pela multifuncional ou pelo desktop — passa a existir em um só lugar.',
+      li:['Armazenamento em nuvem','Origem única para os demais sistemas','Base para tramitação e gestão arquivística'],
+      from:[['scanner','Digitalização'],['multi','Digitalização'],['airsafe','Sincronização']],
+      to:[['flow','Documento para tramitar'],['nfc','Validação de saldo de impressão']] },
+
+    flow: { name:'Flow', sub:'Tramitação de processos e pedidos', c:'#F2B705',
+      desc:'Põe o documento em movimento: processos, pedidos e assinaturas tramitam sobre o acervo, de forma linear ou paralela.',
+      li:['Tramitação de processos e pedidos','Assinatura eletrônica com validade jurídica','Monitoramento das etapas em tempo real'],
+      from:[['airsafe','Sincronização'],['air','Documento para tramitar'],['cidadao','Solicitações']],
+      to:[['siga','Documento para arquivar']] },
+
+    cidadao: { name:'Flow Cidadão', sub:'A porta de entrada externa', c:'#F2711C',
+      desc:'Interface de comunicação e solicitações de clientes externos com a instituição. Quem está fora entra no mesmo fluxo de quem está dentro.',
+      li:['Solicitações de clientes externos','Acompanhamento pelo solicitante','Entrada única no fluxo institucional'],
+      from:[],
+      to:[['flow','Solicitações']] },
+
+    siga: { name:'Siga', sub:'Gestão arquivística com tabela de temporalidade', c:'#57C33B',
+      desc:'Aqui o ciclo deixa de ser improviso e vira política: cada documento recebe classificação, prazo e destino previstos em norma.',
+      li:['Plano de classificação','Captura e registro','Temporalidade','Eliminação','Gestão documental','Trilha de auditoria (eventos)'],
+      from:[['airsafe','Sincronização'],['flow','Documento para arquivar']],
+      to:[['descarte','Envio para descarte'],['rdc','Envio para preservação permanente']] },
+
+    descarte: { name:'Descarte', sub:'O final do ciclo do papel', c:'#0E7A34',
+      desc:'O que cumpriu o prazo é eliminado com método e registro — não é jogar fora, é encerrar formalmente o ciclo de vida do documento.',
+      li:['Fragmentação manual','Fragmentação mecânica','Pulverização','Desmagnetização','Reformatação'],
+      from:[['siga','Envio para descarte']],
+      to:[] },
+
+    rdc: { name:'RDC ARQ', sub:'Guarda permanente de arquivos', c:'#0E7A34',
+      desc:'Repositório de preservação digital de longo prazo: o que é permanente fica íntegro, auditável e com os metadados arquivísticos preservados.',
+      li:['Preservação digital de longo prazo','Garantia da integridade','Preservação dos metadados arquivísticos','Registro das ações de preservação','Controle de incidentes de preservação','Auditoria completa das operações','Gestão de empréstimos documentais'],
+      from:[['siga','Envio para preservação permanente']],
+      to:[] },
+
+    nfc: { name:'Leitores NFC', sub:'Verificação de saldo e autorização', c:'#8E5FD3',
+      desc:'Identifica quem vai imprimir e valida o saldo antes de o papel sair. A impressão deixa de ser anônima e passa a ter dono.',
+      li:['Identificação por crachá NFC','Validação de saldo de impressão','Autorização por usuário e centro de custo'],
+      from:[['air','Validação de saldo de impressão']],
+      to:[['impressora','Envio para impressão']] },
+
+    impressora: { name:'Impressoras', sub:'Só imprime o que precisa existir', c:'#8E5FD3',
+      desc:'A liberação só acontece com saldo validado. E o papel que sai daqui reentra no ciclo — agora com origem, prazo e destino conhecidos.',
+      li:['Liberação por crédito','Impressão vinculada ao usuário','Retorno controlado ao início do ciclo'],
+      from:[['nfc','Envio para impressão']],
+      to:[['doc','Retorno ao início do ciclo']] }
+  };
+
+  const ORDER = ['doc','scanner','multi','computador','airsafe','air','flow','cidadao','siga','descarte','rdc','nfc','impressora','print3d'];
+
+  /* -------------------------------------------------------------------------
+     Posição de cada bolinha NA ARTE IMPRESSA, em pontos do backdrop.pdf
+     (origem no canto superior esquerdo, y para baixo). Extraído do proprio PDF.
+     É isto que faz as setas apontarem para o lado certo do painel real.
+     ------------------------------------------------------------------------- */
+  const POS = {
+    doc:{x:198,y:1007},   scanner:{x:468,y:1012},  multi:{x:452,y:1282},
+    computador:{x:510,y:625}, airsafe:{x:900,y:633}, print3d:{x:1086,y:456},
+    air:{x:961,y:1052},   flow:{x:1347,y:1046},    siga:{x:1783,y:1044},
+    cidadao:{x:1347,y:1421}, descarte:{x:1567,y:1420}, rdc:{x:1936,y:1403},
+    nfc:{x:1780,y:630},   impressora:{x:2077,y:645}
+  };
+
+  /* Largura real do backdrop impresso, em cm. O PDF tem 2250 pt de largura,
+     então 1 pt = BACKDROP_CM / 2250 cm. Só afeta as distâncias mostradas
+     nas setas — as direções continuam corretas mesmo se este número mudar. */
+  const BACKDROP_CM = 300;
+  const PT_TO_CM = BACKDROP_CM / 2250;
+  const ICON = id => `./assets/eco/icons/${id}.png`;
+  const VIDEO = id => `./assets/eco/video/${id}.mp4`;
+
+  const qs = new URLSearchParams(location.search);
+  const DEBUG = qs.get('debug') === '1';
+
+  /* posição de cada camada em relação ao centro do QR (unidades de âncora) */
+  const LAYERS = { 'l-video':[0,-560], 'l-rays':[0,0] };
+  const REF_QR = 220;
+  for (const [id,[x,y]] of Object.entries(LAYERS)) {
+    const e = document.getElementById(id); e.style.left = x+'px'; e.style.top = y+'px';
+  }
+
+  /* ---------------- mini-diagrama animado do item ---------------- */
+  const SVGNS = 'http://www.w3.org/2000/svg';
+  const mk = (n,a={}) => { const e=document.createElementNS(SVGNS,n); for(const k in a) e.setAttribute(k,a[k]); return e; };
+
+  /* Desenha um raio por caminho possível, na direção real que aquele caminho
+     tem no backdrop impresso. O usuário segue o raio até o próximo QR. */
+  const RAY_VB = 1400;          // meia-largura do canvas dos raios
+  const R0 = 190, R1 = 470;     // início e fim do raio, em unidades de âncora
+
+  function buildRays(id){
+    const it = ITEMS[id], me = POS[id];
+    const svg = mk('svg',{ viewBox:`${-RAY_VB} ${-RAY_VB} ${2*RAY_VB} ${2*RAY_VB}`,
+                           width:2*RAY_VB, height:2*RAY_VB });
+
+    const links = [
+      ...it.to.map(([t,l])   => ({id:t, label:l, dir:'out'})),
+      ...it.from.map(([t,l]) => ({id:t, label:l, dir:'in'}))
+    ].filter(l => POS[l.id]);
+
+    links.forEach((lk,i) => {
+      const nb = POS[lk.id];
+      const dx = nb.x - me.x, dy = nb.y - me.y;
+      const ang = Math.atan2(dy, dx);
+      const ux = Math.cos(ang), uy = Math.sin(ang);
+      const cm = Math.round(Math.hypot(dx,dy) * PT_TO_CM);
+
+      const a = {x:ux*R0, y:uy*R0}, b = {x:ux*R1, y:uy*R1};
+      const p = mk('path',{ class:`ray ${lk.dir}`, d:`M ${a.x} ${a.y} L ${b.x} ${b.y}` });
+      svg.appendChild(p);
+
+      // ponta de seta: aponta para fora (siga por aqui) ou para dentro (veio daqui)
+      const head = lk.dir==='out' ? b : a;
+      const sign = lk.dir==='out' ? 1 : -1;
+      const hs = 34, hw = 20;
+      const px = -uy, py = ux;   // perpendicular
+      const tip = {x:head.x + ux*hs*sign*0.6, y:head.y + uy*hs*sign*0.6};
+      const bx = {x:tip.x - ux*hs*sign, y:tip.y - uy*hs*sign};
+      svg.appendChild(mk('path',{
+        class:`ray-pill ${lk.dir==='in'?'in':''}`.trim(),
+        d:`M ${tip.x} ${tip.y} L ${bx.x+px*hw} ${bx.y+py*hw} L ${bx.x-px*hw} ${bx.y-py*hw} Z`
+      }));
+
+      // rótulo do destino, na ponta do raio
+      const lx = ux*(R1+70), ly = uy*(R1+70);
+      const gLabel = mk('g');
+      const name = mk('text',{ class:`ray-label ${lk.dir==='in'?'in':''}`.trim(), x:0, y:0 });
+      name.textContent = ITEMS[lk.id].name;
+      const dist = mk('text',{ class:`ray-dist ${lk.dir==='in'?'in':''}`.trim(), x:0, y:0 });
+      dist.textContent = `${cm} cm`;
+      gLabel.append(name, dist);
+      svg.appendChild(gLabel);
+
+      lk._path = p; lk._delay = i*220;
+      lk._label = {g:gLabel, name, dist, lx, ly, ux};
+      const dot = mk('circle',{ class:`ray-dot ${lk.dir==='in'?'in':''}`.trim(), r:13, cx:a.x, cy:a.y });
+      svg.appendChild(dot);
+      lk._dot = dot; lk._a = a; lk._b = b;
+    });
+
+    const host = document.getElementById('rays');
+    host.innerHTML = ''; host.appendChild(svg);
+    host.style.width = host.style.height = (2*RAY_VB)+'px';
+    host.style.marginLeft = host.style.marginTop = (-RAY_VB)+'px';
+    host.style.position = 'absolute';
+
+    // agora que está no DOM dá para medir: posiciona rótulo + pílula de fundo
+    links.forEach(lk => {
+      const {g, name, dist, lx, ly, ux} = lk._label;
+      const nb = name.getBBox(), db = dist.getBBox();
+      const w = Math.max(nb.width, db.width), h = nb.height + db.height + 6;
+      // ancora o bloco do lado para onde o raio aponta, sem sair do canvas
+      const anchorX = ux >= 0 ? lx : lx - w;
+      const top = ly - h/2;
+      name.setAttribute('x', anchorX); name.setAttribute('y', top + nb.height/2);
+      dist.setAttribute('x', anchorX); dist.setAttribute('y', top + nb.height + 4 + db.height/2);
+      const pad = 18;
+      const pill = mk('rect',{ class:`ray-pill ${lk.dir==='in'?'in':''}`.trim(),
+        x:anchorX-pad, y:top-pad*0.7, width:w+2*pad, height:h+1.4*pad, rx:(h+1.4*pad)/2 });
+      g.insertBefore(pill, name);
+
+      const L = lk._path.getTotalLength();
+      lk._len = L;
+      lk._path.style.setProperty('--L', L);
+      lk._path.style.animationDelay = lk._delay + 'ms';
+      lk._path.classList.add('draw');
+    });
+    return links;
+  }
+
+  let rayLinks = [], rayT0 = 0;
+  function animateRays(now){
+    requestAnimationFrame(animateRays);
+    if (!rayLinks.length) return;
+    for (const lk of rayLinks){
+      let t = ((now - rayT0 - lk._delay) % 1800) / 1800;
+      if (t < 0) { lk._dot.setAttribute('opacity', 0); continue; }
+      if (lk.dir === 'in') t = 1 - t;          // caminhos de entrada fluem para a bolinha
+      lk._dot.setAttribute('cx', lk._a.x + (lk._b.x-lk._a.x)*t);
+      lk._dot.setAttribute('cy', lk._a.y + (lk._b.y-lk._a.y)*t);
+      lk._dot.setAttribute('opacity', Math.min(1, Math.min(t, 1-t)*7).toFixed(2));
+    }
+  }
+  requestAnimationFrame(animateRays);
+
+  /* ---------------- troca de item ---------------- */
+  const pv = document.getElementById('pv'),
+        videobox = document.getElementById('videobox');
+  let current = null;
+
+  /* Carrega o item. `autoplay` só é verdadeiro quando a origem foi um QR lido
+     pela câmera ou um toque do usuário — nunca na abertura da página. */
+  function selectItem(id, autoplay){
+    if (!ITEMS[id]) return;
+    if (id === current){ if (autoplay && pv.paused) pv.play().catch(()=>{}); return; }
+    current = id;
+    const it = ITEMS[id];
+    document.documentElement.style.setProperty('--c', it.c);
+
+    document.getElementById('p-title').textContent = it.name;
+    document.getElementById('p-desc').textContent  = it.desc;
+    document.getElementById('p-list').innerHTML = it.li.map(x=>`<li>${x}</li>`).join('');
+    document.getElementById('v-tag').textContent = it.name;
+
+    // vídeo do item: some sozinho se o arquivo ainda não existir
+    videobox.classList.remove('empty');
+    pv.pause(); pv.removeAttribute('autoplay');
+    pv.src = VIDEO(id); pv.load();
+    if (autoplay) pv.play().catch(()=>{});
+
+    rayLinks = buildRays(id);
+    rayT0 = performance.now();
+
+    [...document.getElementById('picker').children]
+      .forEach(c => c.classList.toggle('on', c.dataset.id === id));
+  }
+  pv.addEventListener('error', () => videobox.classList.add('empty'));
+
+  // seletor manual — modo demonstração, sem o backdrop impresso em mãos.
+  // O toque é um gesto explícito do usuário, então aqui o vídeo pode tocar.
+  const picker = document.getElementById('picker');
+  picker.innerHTML = ORDER.map(id => `<button class="chip" data-id="${id}">${ITEMS[id].name}</button>`).join('');
+  picker.addEventListener('click', e => {
+    const b = e.target.closest('.chip'); if(!b) return;
+    selectItem(b.dataset.id, true);
+    document.getElementById('anchor').classList.add('visible');
+  });
+
+  // prepara o conteúdo inicial sem tocar nada
+  selectItem(qs.get('i') && ITEMS[qs.get('i')] ? qs.get('i') : 'doc', false);
+
+  /* ---------------- câmera + leitura do QR ---------------- */
+  const cam = document.getElementById('cam'), anchor = document.getElementById('anchor'),
+        startOv = document.getElementById('start-overlay'), startBtn = document.getElementById('start-btn'),
+        soundBtn = document.getElementById('sound-btn'), hint = document.getElementById('hint'),
+        sheet = document.getElementById('sheet'), dbg = document.getElementById('dbg');
+  const canvas = document.createElement('canvas'),
+        ctx = canvas.getContext('2d',{willReadFrequently:true});
+  let running = false, lastSeen = 0, sm = {x:0,y:0,size:REF_QR,ang:0,has:false};
+
+  // aceita "…?i=siga", "printer:eco:siga" ou só "siga"
+  function idFromQR(data){
+    if (!data) return null;
+    const m = data.match(/[?&]i=([a-z0-9_]+)/i) || data.match(/eco[:/]([a-z0-9_]+)/i);
+    const cand = (m ? m[1] : data.trim()).toLowerCase();
+    return ITEMS[cand] ? cand : null;
+  }
+
+  startBtn.addEventListener('click', async () => {
+    try {
+      const st = await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}}, audio:false});
+      cam.srcObject = st; await cam.play();
+    } catch(e){ alert('Não foi possível acessar a câmera. Verifique as permissões.'); return; }
+    // sem autoplay: o vídeo só começa quando um QR for reconhecido
+    startOv.style.display = 'none';
+    soundBtn.style.display = 'flex'; hint.style.display = 'flex'; sheet.style.display = 'block';
+    if (DEBUG) dbg.style.display = 'block';
+    running = true; requestAnimationFrame(loop);
+  });
+
+  const lerp = (a,b,t) => a+(b-a)*t;
+  const lerpA = (a,b,t) => { let d = ((b-a+540)%360)-180; return a+d*t; };
+
+  function loop(){
+    if (!running) return;
+    if (cam.readyState >= 2 && cam.videoWidth){
+      const vw = cam.videoWidth, vh = cam.videoHeight, sd = Math.min(1, 480/vw);
+      const cw = Math.round(vw*sd), chh = Math.round(vh*sd);
+      if (canvas.width !== cw){ canvas.width = cw; canvas.height = chh; }
+      ctx.drawImage(cam, 0, 0, cw, chh);
+      const code = jsQR(ctx.getImageData(0,0,cw,chh).data, cw, chh, {inversionAttempts:'dontInvert'});
+      if (code){
+        lastSeen = performance.now();
+        // QR reconhecido: troca o item e dá play. É o único gatilho automático.
+        const found = idFromQR(code.data);
+        if (found) selectItem(found, true);
+
+        const L = code.location, inv = 1/sd;
+        const tl = {x:L.topLeftCorner.x*inv,     y:L.topLeftCorner.y*inv},
+              tr = {x:L.topRightCorner.x*inv,    y:L.topRightCorner.y*inv},
+              bl = {x:L.bottomLeftCorner.x*inv,  y:L.bottomLeftCorner.y*inv},
+              br = {x:L.bottomRightCorner.x*inv, y:L.bottomRightCorner.y*inv};
+        const cx = (tl.x+tr.x+bl.x+br.x)/4, cy = (tl.y+tr.y+bl.y+br.y)/4;
+        const sw = innerWidth, shh = innerHeight, cov = Math.max(sw/vw, shh/vh);
+        const offX = (sw-vw*cov)/2, offY = (shh-vh*cov)/2;
+        const S = p => ({x:offX+p.x*cov, y:offY+p.y*cov});
+        const c = S({x:cx,y:cy}), stl = S(tl), str = S(tr);
+        const size = Math.hypot(str.x-stl.x, str.y-stl.y);
+        const ang = Math.atan2(str.y-stl.y, str.x-stl.x)*180/Math.PI;
+        const k = sm.has ? 0.35 : 1;
+        sm.x = lerp(sm.x,c.x,k); sm.y = lerp(sm.y,c.y,k);
+        sm.size = lerp(sm.size,size,k); sm.ang = lerpA(sm.ang,ang,k); sm.has = true;
+
+        anchor.style.left = sm.x+'px'; anchor.style.top = sm.y+'px';
+        anchor.style.transform = `translate(-50%,-50%) rotate(${sm.ang}deg) scale(${sm.size/REF_QR})`;
+        anchor.classList.add('visible');
+        hint.style.display = 'none';
+      } else if (performance.now() - lastSeen > 400){
+        // saiu de quadro: some o overlay e pausa o vídeo até achar outro QR
+        anchor.classList.remove('visible'); sm.has = false; hint.style.display = 'flex';
+        if (!pv.paused) pv.pause();
+      }
+      if (DEBUG) dbg.textContent =
+        `QR:${code?code.data.slice(0,28):'nao'}\nitem:${current} sz:${sm.size.toFixed(0)}\nvideo:${pv.paused?'pausado':'ok'} rs:${pv.readyState}`;
+    }
+    requestAnimationFrame(loop);
+  }
+
+  soundBtn.addEventListener('click', () => {
+    pv.muted = !pv.muted;
+    soundBtn.textContent = pv.muted ? '🔇 Ativar som' : '🔊 Som ligado';
+    soundBtn.classList.toggle('muted', pv.muted);
+    if (!pv.muted){ pv.volume = 1; pv.play().catch(()=>{}); }
+  });
+  </script>
+</body>
+</html>
