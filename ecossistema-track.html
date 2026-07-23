@@ -183,10 +183,11 @@ function densify(pts){
 function buildRibbon(rawPts, color){
   const ptsLocal = densify(rawPts);
   const n = ptsLocal.length;
-  const pos = new Float32Array(n * 2 * 3);
-  const col = new Float32Array(n * 2 * 3);
-  const idx = [];
-  const s   = new Float32Array(n);      // comprimento acumulado normalizado
+  const pos  = new Float32Array(n * 2 * 3);
+  const col  = new Float32Array(n * 2);   // intensidade do pulso, 1 por vértice
+  const side = new Float32Array(n * 2);   // +1/-1: lado da fita, para borda suave
+  const idx  = [];
+  const s    = new Float32Array(n);       // comprimento acumulado normalizado
 
   let total = 0;
   for (let i = 1; i < n; i++){
@@ -204,6 +205,7 @@ function buildRibbon(rawPts, color){
     const nx = -ty*PULSE_W/2, ny = tx*PULSE_W/2;
     pos[i*6+0] = p[0]+nx; pos[i*6+1] = p[1]+ny; pos[i*6+2] = 0;
     pos[i*6+3] = p[0]-nx; pos[i*6+4] = p[1]-ny; pos[i*6+5] = 0;
+    side[i*2] = 1; side[i*2+1] = -1;
     if (i < n-1){
       const v = i*2;
       idx.push(v, v+1, v+2,  v+1, v+3, v+2);
@@ -212,21 +214,46 @@ function buildRibbon(rawPts, color){
 
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-  geo.setAttribute('color',    new THREE.BufferAttribute(col, 3));
+  geo.setAttribute('aI',    new THREE.BufferAttribute(col, 1));
+  geo.setAttribute('aSide', new THREE.BufferAttribute(side, 1));
   geo.setIndex(idx);
 
-  const mat = new THREE.MeshBasicMaterial({
-    vertexColors:true, transparent:true, blending:THREE.AdditiveBlending,
-    depthWrite:false, depthTest:false, side:THREE.DoubleSide
+  /* A transparencia tem que acompanhar o pulso. Com blending aditivo a cor
+     zera mas o ALFA nao: a fita gravava alfa=1 com RGB=0 e virava uma faixa
+     preta solida por cima do video da camera. Aqui o alfa e o proprio pulso,
+     entao fora dele o fragmento e descartado e so se ve o papel. */
+  const mat = new THREE.ShaderMaterial({
+    uniforms: { uColor: { value: new THREE.Color(color) } },
+    vertexShader: `
+      attribute float aI;
+      attribute float aSide;
+      varying float vI;
+      varying float vS;
+      void main(){
+        vI = aI; vS = aSide;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }`,
+    fragmentShader: `
+      uniform vec3 uColor;
+      varying float vI;
+      varying float vS;
+      void main(){
+        float edge = 1.0 - vS*vS;             // borda suave da fita
+        float a = vI * edge;
+        if (a < 0.02) discard;                // fora do pulso, nada e desenhado
+        vec3 c = mix(uColor, vec3(1.0), vI*vI*0.55);   // nucleo mais claro
+        gl_FragColor = vec4(c, a);
+      }`,
+    transparent:true, depthWrite:false, depthTest:false, side:THREE.DoubleSide
   });
   const mesh = new THREE.Mesh(geo, mat);
   mesh.renderOrder = 10;
-  mesh.userData = { s, col, geo, rgb:new THREE.Color(color) };
+  mesh.userData = { s, col, geo };
   return mesh;
 }
 
 function updatePulse(mesh, t, reversed){
-  const { s, col, geo, rgb } = mesh.userData;
+  const { s, col, geo } = mesh.userData;
   const head = t;                       // 0..1
   const n = s.length;
   for (let i = 0; i < n; i++){
@@ -235,12 +262,10 @@ function updatePulse(mesh, t, reversed){
     if (d < 0) d += 1;                  // a cauda pode dar a volta
     let k = d < PULSE_LEN ? 1 - d/PULSE_LEN : 0;
     k = k*k*(3-2*k);                    // suaviza
-    // a cabeça brilha mais que a cauda
-    const g = k * (0.35 + 0.65*k);
-    col[i*6+0] = rgb.r*g; col[i*6+1] = rgb.g*g; col[i*6+2] = rgb.b*g;
-    col[i*6+3] = rgb.r*g; col[i*6+4] = rgb.g*g; col[i*6+5] = rgb.b*g;
+    const g = k * (0.35 + 0.65*k);      // a cabeça brilha mais que a cauda
+    col[i*2] = g; col[i*2+1] = g;
   }
-  geo.attributes.color.needsUpdate = true;
+  geo.attributes.aI.needsUpdate = true;
 }
 
 /* --------------------------------------------------------------------------- */
@@ -374,6 +399,46 @@ document.getElementById('sound-btn').addEventListener('click', () => {
 window.__diag = () => ({ current, alvos: perTarget.length,
   fitas: perTarget.map(p=>[p.id, p.meshes.length]) });
 
+/* Renderiza uma fita de verdade em WebGL e le os pixels. É o unico jeito de
+   provar o que foi corrigido: fora do pulso o fragmento tem que ser
+   transparente (alfa 0), nao preto opaco por cima do video da camera. */
+window.__rendertest = () => {
+  const W = 256, H = 256;
+  const r = new THREE.WebGLRenderer({ alpha:true, antialias:false, preserveDrawingBuffer:true });
+  r.setSize(W, H); r.setClearColor(0x000000, 0);
+  const sc = new THREE.Scene();
+  const cam = new THREE.OrthographicCamera(-0.5, 0.5, 0.5, -0.5, -10, 10);
+
+  // linha reta horizontal atravessando o quadro
+  const pts = [[-0.45, 0], [0.45, 0]];
+  const m = buildRibbon(pts, '#F2B705');
+  sc.add(m);
+  updatePulse(m, 0.5, false);            // cabeça no meio da linha
+  r.render(sc, cam);
+
+  const gl = r.getContext();
+  const px = new Uint8Array(W*H*4);
+  gl.readPixels(0, 0, W, H, gl.RGBA, gl.UNSIGNED_BYTE, px);
+  const at = (x,y) => { const i = ((H-1-y)*W + x)*4; return [px[i],px[i+1],px[i+2],px[i+3]]; };
+
+  const meio    = at(Math.round(W*0.50), Math.round(H*0.5));  // na cabeça do pulso
+  const atras   = at(Math.round(W*0.47), Math.round(H*0.5));  // na cauda
+  const aFrente = at(Math.round(W*0.75), Math.round(H*0.5));  // adiante da cabeça
+  const inicio  = at(Math.round(W*0.10), Math.round(H*0.5));  // bem atras
+  const foraFita= at(Math.round(W*0.50), Math.round(H*0.75)); // fora da fita
+
+  const out = {
+    naCabeca: meio, naCauda: atras, aFrenteDaCabeca: aFrente,
+    bemAtras: inicio, foraDaFita: foraFita, problemas: []
+  };
+  if (meio[3] < 40)     out.problemas.push('pulso invisivel na cabeca');
+  if (aFrente[3] > 8)   out.problemas.push('desenha adiante da cabeca (deveria ser transparente)');
+  if (inicio[3] > 8)    out.problemas.push('desenha longe do pulso -> faixa opaca, o bug antigo');
+  if (foraFita[3] > 8)  out.problemas.push('desenha fora da largura da fita');
+  r.dispose();
+  return out;
+};
+
 /* Sonda de diagnostico de uma bolinha especifica. */
 window.__probe = async (id) => {
   const t  = await (await fetch('./assets/eco/targets/targets.json')).json();
@@ -385,15 +450,12 @@ window.__probe = async (id) => {
     const rev = l.b===id && l.a!==id;
     const S = m.userData.s, col = m.userData.col;
     updatePulse(m, 0.5, rev);
-    let mi=0, bd=9;
-    for (let k=0;k<S.length;k++){ const sv = rev?1-S[k]:S[k]; if (Math.abs(sv-0.5)<bd){bd=Math.abs(sv-0.5);mi=k;} }
     let maxc=0, maxi=-1;
-    for (let k=0;k<S.length;k++){ const c=col[k*6]+col[k*6+1]+col[k*6+2]; if(c>maxc){maxc=c;maxi=k;} }
+    for (let k=0;k<S.length;k++){ if (col[k*2]>maxc){maxc=col[k*2];maxi=k;} }
     return { i, a:l.a, b:l.b, rev, n:S.length, ptsOriginais:l.pts.length,
              sMin:+S[0].toFixed(4), sMax:+S[S.length-1].toFixed(4),
-             mi, svMi:+(rev?1-S[mi]:S[mi]).toFixed(4),
-             corMi:+(col[mi*6]+col[mi*6+1]+col[mi*6+2]).toFixed(4),
-             vertMaisAceso:maxi, corMax:+maxc.toFixed(4) };
+             vertMaisAceso:maxi, svNoTopo:+(rev?1-S[maxi]:S[maxi]).toFixed(4),
+             intensidadeMax:+maxc.toFixed(4) };
   });
 };
 
@@ -425,9 +487,9 @@ window.__selftest = async () => {
 
       // pulso: em t=0 a cabeca acende o inicio; em t=0.5 acende o meio
       updatePulse(m, 0.0, l.b===tg.id && l.a!==tg.id);
-      const c0 = m.userData.col.slice(0,3).reduce((a,b)=>a+b,0);
+      const c0 = m.userData.col[0];
       updatePulse(m, 0.5, l.b===tg.id && l.a!==tg.id);
-      const c1 = m.userData.col.slice(0,3).reduce((a,b)=>a+b,0);
+      const c1 = m.userData.col[0];
       // Em t=0.5 a cabeça do pulso deve estar na metade da linha. Checa-se o
       // vértice MAIS ACESO, não um vértice fixo: à frente da cabeça é escuro
       // por definição (só a cauda acende), então o vizinho seguinte é preto.
@@ -435,8 +497,7 @@ window.__selftest = async () => {
       const S = m.userData.s, col = m.userData.col;
       let maxc = 0, maxi = -1;
       for (let k = 0; k < S.length; k++){
-        const c = col[k*6] + col[k*6+1] + col[k*6+2];
-        if (c > maxc){ maxc = c; maxi = k; }
+        if (col[k*2] > maxc){ maxc = col[k*2]; maxi = k; }
       }
       const svTopo = maxi < 0 ? -1 : (rev ? 1 - S[maxi] : S[maxi]);
       if (c0 <= 0.001)  out.erros.push(`${tg.id}: pulso nao acende o inicio da linha`);
