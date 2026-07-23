@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Compilar alvos de rastreio (.mind)</title>
+  <!-- mindar-image.prod.js é um ES module: sem type="module" ele nem executa -->
+  <script type="module">
+    import "https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image.prod.js";
+    window.__mindarReady = true;
+  </script>
+  <style>
+    body{font-family:system-ui,sans-serif;background:#0E1014;color:#E6EAEF;margin:0;padding:28px;line-height:1.5}
+    h1{font-size:20px;margin:0 0 4px}
+    p{color:#98A0B0;margin:0 0 20px;font-size:14px;max-width:70ch}
+    button{font:inherit;font-weight:700;background:#00A0E3;color:#06131a;border:0;border-radius:8px;padding:12px 22px;cursor:pointer}
+    button:disabled{opacity:.5;cursor:default}
+    #bar{height:8px;background:#20242c;border-radius:4px;overflow:hidden;margin:20px 0 8px;max-width:640px}
+    #bar i{display:block;height:100%;width:0;background:#00A0E3;transition:width .2s}
+    pre{background:#151920;padding:14px;border-radius:8px;font-size:12.5px;max-width:640px;
+        white-space:pre-wrap;max-height:44vh;overflow:auto}
+  </style>
+</head>
+<body>
+  <h1>Compilar alvos de rastreio</h1>
+  <p>Gera o <code>assets/eco/targets.mind</code> a partir dos 14 recortes em
+     <code>assets/eco/targets/</code>. Precisa estar rodando pelo servidor de apoio
+     (<code>serve_compile.py</code>), que é quem grava o arquivo em disco.
+     A compilação leva alguns minutos — não feche a aba.</p>
+  <button id="go">Compilar 14 alvos</button>
+  <div id="bar"><i></i></div>
+  <pre id="log">pronto.</pre>
+
+<script>
+const log = document.getElementById('log');
+const bar = document.querySelector('#bar i');
+const say = m => { log.textContent += '\n' + m; log.scrollTop = log.scrollHeight; console.log(m); };
+window.__state = 'idle';
+
+async function loadImage(src){
+  return new Promise((res, rej) => {
+    const im = new Image();
+    im.onload = () => res(im);
+    im.onerror = () => rej(new Error('falhou: ' + src));
+    im.src = src;
+  });
+}
+
+document.getElementById('go').addEventListener('click', async () => {
+  document.getElementById('go').disabled = true;
+  window.__state = 'running';
+  try {
+    const meta = await (await fetch('./assets/eco/targets/targets.json')).json();
+    say(`alvos: ${meta.targets.length}`);
+
+    const imgs = [];
+    for (const t of meta.targets){
+      const name = String(t.index).padStart(2,'0') + '-' + t.id + '.png';
+      imgs.push(await loadImage('./assets/eco/targets/' + name));
+      say(`carregado ${name}`);
+    }
+
+    const compiler = new window.MINDAR.IMAGE.Compiler();
+    say('compilando… (isto demora)');
+    await compiler.compileImageTargets(imgs, p => {
+      bar.style.width = p.toFixed(1) + '%';
+      window.__progress = p;
+    });
+    say('compilado. exportando…');
+
+    const buffer = await compiler.exportData();
+    say(`buffer: ${buffer.byteLength} bytes`);
+
+    // se o servidor de apoio estiver rodando, grava direto em disco;
+    // senão, baixa o arquivo para você mover até assets/eco/
+    let salvo = false;
+    try {
+      const r = await fetch('/save', { method:'POST', body: buffer });
+      if (r.ok){ say('gravado em assets/eco/targets.mind — ' + (await r.text())); salvo = true; }
+    } catch(_){}
+
+    if (!salvo){
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob([buffer]));
+      a.download = 'targets.mind';
+      a.click();
+      say('baixado como targets.mind — coloque em printer-ar/assets/eco/');
+    }
+    window.__state = 'done';
+    bar.style.width = '100%';
+  } catch (e) {
+    window.__state = 'error';
+    window.__error = String(e);
+    say('ERRO: ' + e);
+  }
+});
+</script>
+</body>
+</html>

@@ -13,7 +13,11 @@ Há duas experiências nesta pasta:
 | Página | O que faz |
 |---|---|
 | `index.html` | Catálogo de um produto (FLOW): vídeo, funcionalidades, plataforma, contato. |
-| `ecossistema.html` | Backdrop 2026 "Ecossistema da Informação": 14 itens, um QR por bolinha. |
+| `ecossistema-qr.html` | Backdrop 2026, **por QR code**. Pronta e testada. |
+| `ecossistema-track.html` | Backdrop 2026, **rastreando a arte**, sem QR. Experimental. |
+
+> `ecossistema.html` é uma cópia da versão por QR, mantida como o nome estável usado
+> pelos QR codes já gerados.
 
 ---
 
@@ -165,6 +169,73 @@ também funcionam:
   o QR estiver deslocado de um jeito diferente em cada item, as setas apontam torto.
 - O vídeo nasce acima do QR. Evite encostar o QR no topo do painel, ou o vídeo fica alto
   demais para quem estiver de pé na frente dele.
+
+---
+
+## Rastreio da arte, sem QR (`ecossistema-track.html`) — experimental
+
+A pessoa aponta a câmera direto para a bolinha, sem QR nenhum. O vídeo aparece acima
+dela e um **pulso de energia percorre a própria linha impressa** até a bolinha seguinte.
+
+Stack: [MindAR](https://hiukim.github.io/mind-ar-js-doc/) (image tracking) + three.js.
+
+### Como o pulso fica em cima da linha do papel
+
+O alvo rastreado define um plano e um sistema de coordenadas. Como se sabe qual pedaço
+do backdrop cada alvo cobre (`assets/eco/targets/targets.json`), dá para projetar
+**qualquer** ponto do painel nesse plano — inclusive linhas que estão longe do alvo.
+
+A geometria dos conectores sai do **próprio `backdrop.pdf`** (`build_lines.py` extrai os
+traços vetoriais para `assets/eco/lines.json`), não de rotas redesenhadas. É por isso que
+o pulso corre exatamente sobre a linha impressa.
+
+O pulso é uma fita de triângulos ao longo da polilinha, invisível (preta, blending
+aditivo) exceto na faixa onde a energia passa. As polilinhas são subdivididas antes de
+virar fita: várias são retas de 2 pontos, e com 2 vértices a cor só interpolaria entre as
+pontas — viraria um crossfade em vez de um pulso correndo.
+
+### Passo obrigatório: compilar os alvos
+
+O `assets/eco/targets.mind` **não está no repositório** e precisa ser gerado uma vez.
+O compilador do MindAR só roda em navegador, e **em aba visível** — em aba oculta o
+navegador limita os temporizadores e a compilação praticamente não anda.
+
+1. Abra **`compile-targets.html`** numa aba normal do seu navegador (pode ser pela URL
+   publicada ou local) e deixe a aba em primeiro plano.
+2. Clique em **Compilar 14 alvos** e aguarde alguns minutos.
+3. O arquivo é baixado como `targets.mind`. Coloque em **`assets/eco/`** e faça commit.
+
+Se preferir gravar direto em disco sem baixar, rode antes:
+
+```bash
+python serve_compile.py
+```
+
+e abra `http://localhost:8793/compile-targets.html` — a página grava o `.mind` no lugar
+certo sozinha.
+
+### Regerar os recortes de alvo
+
+```bash
+python gen_targets.py     # recorta 14 alvos do backdrop.pdf + targets.json
+python build_lines.py     # extrai as polilinhas impressas -> lines.json
+```
+
+Se mudar os recortes, é preciso **recompilar o `.mind`**.
+
+### O que pode não funcionar
+
+Este caminho é uma aposta, e por isso a versão por QR continua intacta:
+
+- **Logos chapados rastreiam mal.** Air, Flow, Siga e RDC têm pouca textura. Os recortes
+  incluem o título e a legenda embaixo justamente para dar pontos ao matcher, mas pode
+  não bastar.
+- **Tremor a distância.** O pulso é desenhado extrapolando a pose para até ~1 m do alvo
+  rastreado; erro de pose vira deslocamento visível na ponta longe.
+- **Custo.** 14 alvos num `.mind` deixam a detecção mais lenta que um QR.
+
+Se qualquer um desses incomodar na feira, use `ecossistema-qr.html`, que não depende de
+nada disso.
 
 ---
 

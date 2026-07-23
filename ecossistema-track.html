@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Printer AR — Ecossistema (rastreio da arte)</title>
+  <style>
+    :root{ --y:#FDB930; --ink:#16181D; --ink2:#0E1014; --acc:#00A0E3; --c:#00A0E3; }
+    *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+    html,body{ margin:0; width:100%; height:100%; overflow:hidden;
+      font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; background:var(--ink2); color:#fff; }
+    #ar{ position:fixed; inset:0; }
+    #ar canvas, #ar video{ width:100% !important; height:100% !important; object-fit:cover; }
+
+    @keyframes dotP{ 0%,100%{transform:scale(1);opacity:.5} 50%{transform:scale(1.5);opacity:1} }
+    @keyframes sweep{ from{transform:translateX(-130%)} to{transform:translateX(340%)} }
+    @keyframes glowPls{ 0%,100%{box-shadow:0 18px 44px rgba(0,0,0,.6), 0 0 0 2px var(--c)}
+                        50%    {box-shadow:0 18px 52px rgba(0,0,0,.66),0 0 0 3px var(--c), 0 0 46px var(--c)} }
+
+    /* player ancorado acima da bolinha (posicionado por projeção 3D) */
+    #vwrap{ position:fixed; left:0; top:0; z-index:5; width:0; height:0;
+      transform:translate(-50%,-50%); opacity:0; transition:opacity .25s; pointer-events:none; }
+    #vwrap.on{ opacity:1; }
+    .videobox{ position:absolute; left:0; top:0; transform:translate(-50%,-50%);
+      width:min(74vw,420px); border-radius:20px; overflow:hidden; background:#0d1218;
+      animation:glowPls 3.6s ease-in-out infinite; }
+    .videobox video{ display:block; width:100%; height:auto; }
+    .videobox .sheen{ position:absolute; top:0; bottom:0; width:70px; pointer-events:none;
+      background:linear-gradient(100deg,transparent,rgba(255,255,255,.26),transparent); animation:sweep 5s ease-in-out infinite 1.2s; }
+    .videobox .tag{ position:absolute; left:12px; top:12px; font-size:12px; font-weight:900; letter-spacing:1.4px;
+      padding:5px 12px; border-radius:999px; background:var(--c); color:#0E1014; text-transform:uppercase; }
+    .videobox.empty{ display:none; }
+
+    /* ficha fixa, não ancorada */
+    #sheet{ position:fixed; left:0; right:0; bottom:0; z-index:24; display:none;
+      padding:12px 12px calc(12px + env(safe-area-inset-bottom));
+      background:linear-gradient(180deg,transparent,rgba(0,0,0,.78) 34%); }
+    .panel{ border-radius:20px; padding:14px 17px; border:1px solid color-mix(in srgb, var(--c) 45%, transparent);
+      background:linear-gradient(150deg, rgba(22,24,29,.95), rgba(14,16,20,.9)); backdrop-filter:blur(12px);
+      max-height:34vh; overflow-y:auto; }
+    .panel h3{ margin:0 0 5px; font-size:18px; font-weight:900; color:var(--c); }
+    .panel p{ margin:0; font-size:14px; line-height:1.5; color:#E6EAEF; }
+    .panel ul{ margin:10px 0 0; padding:10px 0 0; list-style:none; display:grid; gap:5px;
+      border-top:1px solid rgba(255,255,255,.14); }
+    .panel li{ font-size:13px; line-height:1.4; color:#C9D3DC; display:flex; gap:8px; align-items:baseline; }
+    .panel li::before{ content:""; width:6px; height:6px; flex:none; border-radius:50%; background:var(--c); transform:translateY(-1px); }
+
+    #sound-btn{ position:fixed; right:14px; top:14px; z-index:26; display:none; align-items:center; gap:7px;
+      height:44px; padding:0 16px; border:0; border-radius:999px; background:var(--y); color:var(--ink);
+      font-size:13.5px; font-weight:900; box-shadow:0 8px 22px rgba(0,0,0,.45); }
+    #sound-btn.muted{ animation:dotP 1.9s ease-in-out infinite }
+    #hint{ position:fixed; left:50%; top:44%; transform:translate(-50%,-50%); z-index:20; display:none;
+      align-items:center; gap:10px; padding:14px 22px; border-radius:999px; background:rgba(0,0,0,.7);
+      backdrop-filter:blur(6px); font-size:.92rem; text-align:center; }
+    #hint .d{ width:10px; height:10px; border-radius:50%; background:var(--y); animation:dotP 1.3s infinite; flex:none }
+
+    #start-overlay{ position:fixed; inset:0; z-index:30; display:flex; flex-direction:column; align-items:center;
+      justify-content:center; text-align:center; padding:24px;
+      background:radial-gradient(120% 120% at 50% 0%, rgba(0,160,227,.22), transparent 60%), var(--ink2); }
+    #start-overlay .eb{ font-size:12px; letter-spacing:4px; text-transform:uppercase; color:var(--acc); font-weight:800 }
+    #start-overlay h1{ font-size:2.3rem; font-weight:900; margin:6px 0 12px; letter-spacing:-1.5px; line-height:1.05 }
+    #start-overlay p{ font-size:1rem; opacity:.82; margin:0 0 12px; max-width:340px; line-height:1.55 }
+    #start-overlay .alt{ font-size:.82rem; opacity:.6; margin:22px 0 0 }
+    #start-overlay .alt a{ color:var(--acc) }
+    #start-btn{ border:0; border-radius:999px; padding:17px 44px; font-size:1.05rem; font-weight:900; color:#0E1014;
+      background:var(--acc); box-shadow:0 10px 30px rgba(0,160,227,.45); margin-top:18px }
+    #dbg{ position:fixed; left:8px; top:8px; z-index:40; display:none; font:11px/1.4 monospace;
+      background:rgba(0,0,0,.75); padding:6px 9px; border-radius:6px; white-space:pre }
+  </style>
+</head>
+<body>
+  <div id="ar"></div>
+
+  <div id="vwrap">
+    <div class="videobox" id="videobox">
+      <span class="tag" id="v-tag"></span>
+      <video id="pv" loop muted playsinline webkit-playsinline></video>
+      <span class="sheen"></span>
+    </div>
+  </div>
+
+  <button id="sound-btn" class="muted">🔇 Ativar som</button>
+  <div id="hint"><span class="d"></span> Aponte a câmera para uma das bolinhas do painel</div>
+  <div id="dbg"></div>
+
+  <div id="sheet"><div class="panel">
+    <h3 id="p-title"></h3>
+    <p id="p-desc"></p>
+    <ul id="p-list"></ul>
+  </div></div>
+
+  <div id="start-overlay">
+    <div class="eb">Grupo Printer · Catálogo 2026</div>
+    <h1>Ecossistema<br>da Informação</h1>
+    <p>Aponte a câmera para qualquer bolinha do painel. O vídeo aparece acima dela e um
+       pulso de energia percorre os caminhos possíveis, na própria linha impressa.</p>
+    <button id="start-btn">Iniciar experiência</button>
+    <p class="alt">Rastreio da arte, sem QR. Se falhar no seu aparelho,
+       use a <a href="./ecossistema-qr.html">versão por QR code</a>.</p>
+  </div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.151.3/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.151.3/examples/jsm/"
+} }
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { MindARThree } from 'https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js';
+
+/* ---------------------------------------------------------------------------
+   Conteúdo dos 14 itens (mesmo texto da versão por QR).
+   --------------------------------------------------------------------------- */
+const ITEMS = {
+  doc:{name:'Documento físico',c:'#7A2140',desc:'Pilhas de papel circulando pela mesa: documentos que se perdem, informação que ninguém acha e retrabalho que ninguém mede. É onde a maioria das instituições ainda está.',li:['Sem rastreabilidade','Sem prazo definido','Sem controle de acesso']},
+  scanner:{name:'Scanners',c:'#B06FD6',desc:'Converte o acervo físico em arquivo digital com qualidade de captura adequada a cada tipo de documento.',li:['Digitalização planetária','Digitalização normal','Digitalização 3D']},
+  multi:{name:'Multifuncionais',c:'#B06FD6',desc:'Leva a captura para dentro do setor: o servidor digitaliza no equipamento que já usa, sem depender de uma central.',li:['Digitalização planetária','Digitalização normal','Digitalização 3D']},
+  computador:{name:'Computadores',c:'#5B6270',desc:'O arquivo de trabalho do usuário. É o ponto mais frágil do ciclo: o que fica só no desktop não tem backup, prazo nem auditoria.',li:['Arquivos de trabalho do usuário','Pastas locais monitoradas pelo AIR SAFE']},
+  airsafe:{name:'AIR SAFE',c:'#128FA8',desc:'Vigia as pastas do computador do usuário, detecta alterações nos arquivos e sincroniza com o Air — sem depender da disciplina de ninguém.',li:['Verifica alterações dos arquivos do usuário','Espelha as pastas locais no Air','Upload contínuo para a nuvem']},
+  print3d:{name:'Impressoras 3D',c:'#8E5FD3',desc:'Produção de peças sob demanda a partir dos arquivos do usuário, dentro do mesmo controle de saldo e autorização.',li:['Produção sob demanda','Envio direto do computador']},
+  air:{name:'Air',c:'#E8382F',desc:'O repositório único do acervo digital. Tudo que foi capturado — pelo scanner, pela multifuncional ou pelo desktop — passa a existir em um só lugar.',li:['Armazenamento em nuvem','Origem única para os demais sistemas','Base para tramitação e gestão arquivística']},
+  flow:{name:'Flow',c:'#F2B705',desc:'Põe o documento em movimento: processos, pedidos e assinaturas tramitam sobre o acervo, de forma linear ou paralela.',li:['Tramitação de processos e pedidos','Assinatura eletrônica com validade jurídica','Monitoramento das etapas em tempo real']},
+  cidadao:{name:'Flow Cidadão',c:'#F2711C',desc:'Interface de comunicação e solicitações de clientes externos com a instituição. Quem está fora entra no mesmo fluxo de quem está dentro.',li:['Solicitações de clientes externos','Acompanhamento pelo solicitante','Entrada única no fluxo institucional']},
+  siga:{name:'Siga',c:'#57C33B',desc:'Aqui o ciclo deixa de ser improviso e vira política: cada documento recebe classificação, prazo e destino previstos em norma.',li:['Plano de classificação','Captura e registro','Temporalidade','Eliminação','Gestão documental','Trilha de auditoria (eventos)']},
+  descarte:{name:'Descarte',c:'#0E7A34',desc:'O que cumpriu o prazo é eliminado com método e registro — não é jogar fora, é encerrar formalmente o ciclo de vida do documento.',li:['Fragmentação manual','Fragmentação mecânica','Pulverização','Desmagnetização','Reformatação']},
+  rdc:{name:'RDC ARQ',c:'#0E7A34',desc:'Repositório de preservação digital de longo prazo: o que é permanente fica íntegro, auditável e com os metadados arquivísticos preservados.',li:['Preservação digital de longo prazo','Garantia da integridade','Preservação dos metadados arquivísticos','Auditoria completa das operações','Gestão de empréstimos documentais']},
+  nfc:{name:'Leitores NFC',c:'#8E5FD3',desc:'Identifica quem vai imprimir e valida o saldo antes de o papel sair. A impressão deixa de ser anônima e passa a ter dono.',li:['Identificação por crachá NFC','Validação de saldo de impressão','Autorização por usuário e centro de custo']},
+  impressora:{name:'Impressoras',c:'#8E5FD3',desc:'A liberação só acontece com saldo validado. E o papel que sai daqui reentra no ciclo — agora com origem, prazo e destino conhecidos.',li:['Liberação por crédito','Impressão vinculada ao usuário','Retorno controlado ao início do ciclo']}
+};
+
+/* Centro de cada bolinha em pontos do backdrop.pdf */
+const POS = {
+  doc:{x:198,y:1007}, scanner:{x:468,y:1012}, multi:{x:452,y:1282},
+  computador:{x:510,y:625}, airsafe:{x:900,y:633}, print3d:{x:1086,y:456},
+  air:{x:961,y:1052}, flow:{x:1347,y:1046}, siga:{x:1783,y:1044},
+  cidadao:{x:1347,y:1421}, descarte:{x:1567,y:1420}, rdc:{x:1936,y:1403},
+  nfc:{x:1780,y:630}, impressora:{x:2077,y:645}
+};
+
+const qs = new URLSearchParams(location.search);
+const DEBUG = qs.get('debug') === '1';
+const dbg = document.getElementById('dbg');
+const hint = document.getElementById('hint');
+const pv = document.getElementById('pv');
+const videobox = document.getElementById('videobox');
+const vwrap = document.getElementById('vwrap');
+
+/* ---------------------------------------------------------------------------
+   Malha do pulso: fita ao longo da polilinha impressa.
+   A fita é invisível (preta + blending aditivo) exceto onde o pulso passa,
+   então o que se vê é só a energia correndo por cima da linha do papel.
+   --------------------------------------------------------------------------- */
+const PULSE_W   = 0.030;   // largura da fita, em unidades do alvo (1 = largura do alvo)
+const PULSE_LEN = 0.11;    // comprimento do pulso, fração do comprimento da linha
+const PULSE_MS  = 2600;    // tempo de uma passada
+
+/* Subdivide a polilinha mantendo os vertices originais (para nao cortar quina)
+   e acrescentando pontos intermediarios. Sem isso, uma reta de 2 pontos nao tem
+   onde acender no meio: a cor so interpolaria entre as pontas e o pulso viraria
+   um crossfade em vez de correr pela linha. */
+const RIBBON_SAMPLES = 300;
+function densify(pts){
+  let total = 0;
+  for (let i = 1; i < pts.length; i++)
+    total += Math.hypot(pts[i][0]-pts[i-1][0], pts[i][1]-pts[i-1][1]);
+  if (total <= 0) return pts;
+  const step = total / RIBBON_SAMPLES;
+  const out = [pts[0]];
+  for (let i = 1; i < pts.length; i++){
+    const a = pts[i-1], b = pts[i];
+    const len = Math.hypot(b[0]-a[0], b[1]-a[1]);
+    const k = Math.max(1, Math.ceil(len/step));
+    for (let j = 1; j <= k; j++){
+      const t = j/k;
+      out.push([a[0]+(b[0]-a[0])*t, a[1]+(b[1]-a[1])*t]);
+    }
+  }
+  return out;
+}
+
+function buildRibbon(rawPts, color){
+  const ptsLocal = densify(rawPts);
+  const n = ptsLocal.length;
+  const pos = new Float32Array(n * 2 * 3);
+  const col = new Float32Array(n * 2 * 3);
+  const idx = [];
+  const s   = new Float32Array(n);      // comprimento acumulado normalizado
+
+  let total = 0;
+  for (let i = 1; i < n; i++){
+    total += Math.hypot(ptsLocal[i][0]-ptsLocal[i-1][0], ptsLocal[i][1]-ptsLocal[i-1][1]);
+    s[i] = total;
+  }
+  if (total <= 0) return null;
+  for (let i = 0; i < n; i++) s[i] /= total;
+
+  for (let i = 0; i < n; i++){
+    const p = ptsLocal[i];
+    const a = ptsLocal[Math.max(0, i-1)], b = ptsLocal[Math.min(n-1, i+1)];
+    let tx = b[0]-a[0], ty = b[1]-a[1];
+    const L = Math.hypot(tx,ty) || 1; tx/=L; ty/=L;
+    const nx = -ty*PULSE_W/2, ny = tx*PULSE_W/2;
+    pos[i*6+0] = p[0]+nx; pos[i*6+1] = p[1]+ny; pos[i*6+2] = 0;
+    pos[i*6+3] = p[0]-nx; pos[i*6+4] = p[1]-ny; pos[i*6+5] = 0;
+    if (i < n-1){
+      const v = i*2;
+      idx.push(v, v+1, v+2,  v+1, v+3, v+2);
+    }
+  }
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geo.setAttribute('color',    new THREE.BufferAttribute(col, 3));
+  geo.setIndex(idx);
+
+  const mat = new THREE.MeshBasicMaterial({
+    vertexColors:true, transparent:true, blending:THREE.AdditiveBlending,
+    depthWrite:false, depthTest:false, side:THREE.DoubleSide
+  });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.renderOrder = 10;
+  mesh.userData = { s, col, geo, rgb:new THREE.Color(color) };
+  return mesh;
+}
+
+function updatePulse(mesh, t, reversed){
+  const { s, col, geo, rgb } = mesh.userData;
+  const head = t;                       // 0..1
+  const n = s.length;
+  for (let i = 0; i < n; i++){
+    const si = reversed ? 1 - s[i] : s[i];
+    let d = head - si;                  // distância atrás da cabeça
+    if (d < 0) d += 1;                  // a cauda pode dar a volta
+    let k = d < PULSE_LEN ? 1 - d/PULSE_LEN : 0;
+    k = k*k*(3-2*k);                    // suaviza
+    // a cabeça brilha mais que a cauda
+    const g = k * (0.35 + 0.65*k);
+    col[i*6+0] = rgb.r*g; col[i*6+1] = rgb.g*g; col[i*6+2] = rgb.b*g;
+    col[i*6+3] = rgb.r*g; col[i*6+4] = rgb.g*g; col[i*6+5] = rgb.b*g;
+  }
+  geo.attributes.color.needsUpdate = true;
+}
+
+/* --------------------------------------------------------------------------- */
+let mindar, renderer, scene, camera, anchors = [], current = null, meta = null, LINES = null;
+const perTarget = [];   // { id, anchor, meshes:[{mesh, reversed}], ballLocal }
+
+function localFromPdf(rect, x, y){
+  const [x0,y0,x1,y1] = rect;
+  const cx = (x0+x1)/2, cy = (y0+y1)/2, W = x1-x0;
+  return [ (x-cx)/W, -(y-cy)/W ];
+}
+
+async function boot(){
+  meta  = await (await fetch('./assets/eco/targets/targets.json')).json();
+  LINES = await (await fetch('./assets/eco/lines.json')).json();
+
+  mindar = new MindARThree({
+    container: document.getElementById('ar'),
+    imageTargetSrc: './assets/eco/targets.mind',
+    maxTrack: 1,
+    uiScanning: 'no', uiLoading: 'no', uiError: 'no',
+    filterMinCF: 0.0001, filterBeta: 0.005      // suaviza a pose, reduz tremor
+  });
+  ({ renderer, scene, camera } = mindar);
+
+  meta.targets.forEach(t => {
+    const anchor = mindar.addAnchor(t.index);
+    const id = t.id;
+    const group = new THREE.Group();
+    anchor.group.add(group);
+
+    // todas as linhas impressas que encostam nesta bolinha
+    const meshes = [];
+    LINES.lines.forEach(ln => {
+      const touchesA = ln.a === id, touchesB = ln.b === id;
+      if (!touchesA && !touchesB) return;
+      const pts = ln.pts.map(([x,y]) => localFromPdf(t.rect, x, y));
+      const m = buildRibbon(pts, ITEMS[id].c);
+      if (!m) return;
+      group.add(m);
+      // o pulso sempre sai da bolinha detectada
+      meshes.push({ mesh:m, reversed: touchesB && !touchesA });
+    });
+
+    const ball = localFromPdf(t.rect, POS[id].x, POS[id].y);
+    perTarget.push({ id, anchor, meshes, ball, group });
+
+    anchor.onTargetFound = () => onFound(id);
+    anchor.onTargetLost  = () => onLost(id);
+  });
+
+  await mindar.start();
+  document.getElementById('sheet').style.display = 'block';
+  document.getElementById('sound-btn').style.display = 'flex';
+  hint.style.display = 'flex';
+  if (DEBUG) dbg.style.display = 'block';
+
+  renderer.setAnimationLoop(tick);
+}
+
+function onFound(id){
+  current = id;
+  const it = ITEMS[id];
+  document.documentElement.style.setProperty('--c', it.c);
+  document.getElementById('p-title').textContent = it.name;
+  document.getElementById('p-desc').textContent  = it.desc;
+  document.getElementById('p-list').innerHTML = it.li.map(x=>`<li>${x}</li>`).join('');
+  document.getElementById('v-tag').textContent = it.name;
+
+  videobox.classList.remove('empty');
+  pv.pause();
+  pv.src = `./assets/eco/video/${id}.mp4`;
+  pv.load();
+  pv.play().catch(()=>{});          // só aqui: o alvo foi reconhecido
+  vwrap.classList.add('on');
+  hint.style.display = 'none';
+}
+
+function onLost(id){
+  if (current === id){ current = null; }
+  vwrap.classList.remove('on');
+  hint.style.display = 'flex';
+  if (!pv.paused) pv.pause();       // fora de quadro, o vídeo para
+}
+
+pv.addEventListener('error', () => videobox.classList.add('empty'));
+
+const _v = new THREE.Vector3();
+function tick(){
+  const t = (performance.now() % PULSE_MS) / PULSE_MS;
+  for (const pt of perTarget){
+    const on = pt.anchor.group.visible;
+    for (const m of pt.meshes){
+      m.mesh.visible = on;
+      if (on) updatePulse(m.mesh, t, m.reversed);
+    }
+    // posiciona o player acima da bolinha, projetando o ponto na tela
+    if (on && pt.id === current){
+      _v.set(pt.ball[0], pt.ball[1] + 0.62, 0);
+      pt.group.localToWorld(_v);
+      _v.project(camera);
+      vwrap.style.left = ((_v.x*0.5+0.5)*innerWidth) + 'px';
+      vwrap.style.top  = ((-_v.y*0.5+0.5)*innerHeight) + 'px';
+    }
+  }
+  renderer.render(scene, camera);
+  if (DEBUG){
+    const vis = perTarget.filter(p=>p.anchor.group.visible).map(p=>p.id);
+    dbg.textContent = `visivel: ${vis.join(',')||'-'}\nitem: ${current||'-'}\nvideo: ${pv.paused?'pausado':'ok'}`;
+  }
+}
+
+document.getElementById('start-btn').addEventListener('click', async () => {
+  document.getElementById('start-overlay').style.display = 'none';
+  try { await boot(); }
+  catch(e){
+    document.getElementById('start-overlay').style.display = 'flex';
+    document.querySelector('#start-overlay p').textContent = 'Falhou ao iniciar: ' + e.message;
+    console.error(e);
+  }
+});
+
+document.getElementById('sound-btn').addEventListener('click', () => {
+  pv.muted = !pv.muted;
+  const b = document.getElementById('sound-btn');
+  b.textContent = pv.muted ? '🔇 Ativar som' : '🔊 Som ligado';
+  b.classList.toggle('muted', pv.muted);
+  if (!pv.muted) pv.play().catch(()=>{});
+});
+
+window.__diag = () => ({ current, alvos: perTarget.length,
+  fitas: perTarget.map(p=>[p.id, p.meshes.length]) });
+
+/* Sonda de diagnostico de uma bolinha especifica. */
+window.__probe = async (id) => {
+  const t  = await (await fetch('./assets/eco/targets/targets.json')).json();
+  const ln = await (await fetch('./assets/eco/lines.json')).json();
+  const tg = t.targets.find(x => x.id === id);
+  return ln.lines.filter(l => l.a===id || l.b===id).map((l,i) => {
+    const pts = l.pts.map(([x,y]) => localFromPdf(tg.rect,x,y));
+    const m = buildRibbon(pts, ITEMS[id].c);
+    const rev = l.b===id && l.a!==id;
+    const S = m.userData.s, col = m.userData.col;
+    updatePulse(m, 0.5, rev);
+    let mi=0, bd=9;
+    for (let k=0;k<S.length;k++){ const sv = rev?1-S[k]:S[k]; if (Math.abs(sv-0.5)<bd){bd=Math.abs(sv-0.5);mi=k;} }
+    let maxc=0, maxi=-1;
+    for (let k=0;k<S.length;k++){ const c=col[k*6]+col[k*6+1]+col[k*6+2]; if(c>maxc){maxc=c;maxi=k;} }
+    return { i, a:l.a, b:l.b, rev, n:S.length, ptsOriginais:l.pts.length,
+             sMin:+S[0].toFixed(4), sMax:+S[S.length-1].toFixed(4),
+             mi, svMi:+(rev?1-S[mi]:S[mi]).toFixed(4),
+             corMi:+(col[mi*6]+col[mi*6+1]+col[mi*6+2]).toFixed(4),
+             vertMaisAceso:maxi, corMax:+maxc.toFixed(4) };
+  });
+};
+
+/* Autoteste da geometria: roda sem camera e sem .mind, so com os dados.
+   Confere o mapeamento PDF->alvo, a construcao das fitas e o pulso. */
+window.__selftest = async () => {
+  const t  = await (await fetch('./assets/eco/targets/targets.json')).json();
+  const ln = await (await fetch('./assets/eco/lines.json')).json();
+  const out = { alvos:t.targets.length, linhas:ln.lines.length, itens:[], erros:[] };
+
+  for (const tg of t.targets){
+    const ball = localFromPdf(tg.rect, POS[tg.id].x, POS[tg.id].y);
+    // a bolinha deve cair perto do centro do alvo (o alvo é centrado nela + DY)
+    if (Math.abs(ball[0]) > 0.06) out.erros.push(`${tg.id}: bolinha fora de centro em x (${ball[0].toFixed(3)})`);
+    if (Math.abs(ball[1]) > 0.25) out.erros.push(`${tg.id}: bolinha longe demais em y (${ball[1].toFixed(3)})`);
+
+    const mine = ln.lines.filter(l => l.a===tg.id || l.b===tg.id);
+    let vtx = 0, semFita = 0;
+    const dists = [];
+    for (const l of mine){
+      const pts = l.pts.map(([x,y]) => localFromPdf(tg.rect, x, y));
+      const m = buildRibbon(pts, ITEMS[tg.id].c);
+      if (!m){ semFita++; continue; }
+      vtx += m.geometry.attributes.position.count;
+
+      // a ponta que encosta na bolinha tem que ser mesmo a mais proxima dela
+      const near = l.a===tg.id ? pts[0] : pts[pts.length-1];
+      dists.push(+Math.hypot(near[0]-ball[0], near[1]-ball[1]).toFixed(3));
+
+      // pulso: em t=0 a cabeca acende o inicio; em t=0.5 acende o meio
+      updatePulse(m, 0.0, l.b===tg.id && l.a!==tg.id);
+      const c0 = m.userData.col.slice(0,3).reduce((a,b)=>a+b,0);
+      updatePulse(m, 0.5, l.b===tg.id && l.a!==tg.id);
+      const c1 = m.userData.col.slice(0,3).reduce((a,b)=>a+b,0);
+      // Em t=0.5 a cabeça do pulso deve estar na metade da linha. Checa-se o
+      // vértice MAIS ACESO, não um vértice fixo: à frente da cabeça é escuro
+      // por definição (só a cauda acende), então o vizinho seguinte é preto.
+      const rev = l.b===tg.id && l.a!==tg.id;
+      const S = m.userData.s, col = m.userData.col;
+      let maxc = 0, maxi = -1;
+      for (let k = 0; k < S.length; k++){
+        const c = col[k*6] + col[k*6+1] + col[k*6+2];
+        if (c > maxc){ maxc = c; maxi = k; }
+      }
+      const svTopo = maxi < 0 ? -1 : (rev ? 1 - S[maxi] : S[maxi]);
+      if (c0 <= 0.001)  out.erros.push(`${tg.id}: pulso nao acende o inicio da linha`);
+      if (maxc <= 0.001) out.erros.push(`${tg.id}: pulso apagado em t=0.5`);
+      else if (Math.abs(svTopo - 0.5) > 0.03)
+        out.erros.push(`${tg.id}: cabeca do pulso em ${svTopo.toFixed(3)}, esperado ~0.5`);
+      if (c1 >= c0)     out.erros.push(`${tg.id}: pulso nao se move (inicio nao apaga)`);
+    }
+    out.itens.push({ id:tg.id, linhas:mine.length, vertices:vtx, semFita,
+                     distPontaAteBolinha:dists });
+  }
+  return out;
+};
+</script>
+</body>
+</html>
