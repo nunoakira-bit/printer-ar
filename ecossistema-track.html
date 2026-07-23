@@ -327,6 +327,23 @@ async function boot(){
   hint.style.display = 'flex';
   if (DEBUG) dbg.style.display = 'block';
 
+  // O MindAR só dimensiona canvas, vídeo e projeção dentro de resize(), que ele
+  // liga apenas ao evento window 'resize'. Esse evento pode não disparar após o
+  // start (ou disparar com o vídeo ainda sem dimensões), deixando o canvas e o
+  // vídeo com larguras diferentes -> faixa preta e overlay deslocado.
+  // Forçamos o recálculo assim que o vídeo tem dimensões reais e o mantemos
+  // casado quando o viewport muda (barra do Safari, rotação).
+  const forceResize = () => { try { mindar.resize(); } catch(_){} };
+  const resizeWhenReady = (tries) => {
+    const v = mindar.video;
+    if (v && v.videoWidth > 0 && container.clientWidth > 0){ forceResize(); }
+    else if (tries > 0) requestAnimationFrame(() => resizeWhenReady(tries-1));
+  };
+  resizeWhenReady(180);
+  addEventListener('orientationchange', () => setTimeout(forceResize, 300));
+  addEventListener('resize', forceResize);
+  if (window.visualViewport) visualViewport.addEventListener('resize', forceResize);
+
   renderer.setAnimationLoop(tick);
 }
 
@@ -378,7 +395,14 @@ function tick(){
   renderer.render(scene, camera);
   if (DEBUG){
     const vis = perTarget.filter(p=>p.anchor.group.visible).map(p=>p.id);
-    dbg.textContent = `visivel: ${vis.join(',')||'-'}\nitem: ${current||'-'}\nvideo: ${pv.paused?'pausado':'ok'}`;
+    const vid = mindar.video ? mindar.video.getBoundingClientRect() : null;
+    const cvs = renderer.domElement.getBoundingClientRect();
+    const r = x => Math.round(x);
+    dbg.textContent =
+      `win ${innerWidth}x${innerHeight}\n` +
+      (vid ? `vid ${r(vid.left)},${r(vid.top)} ${r(vid.width)}x${r(vid.height)} (raw ${mindar.video.videoWidth}x${mindar.video.videoHeight})\n` : 'vid -\n') +
+      `cvs ${r(cvs.left)},${r(cvs.top)} ${r(cvs.width)}x${r(cvs.height)}\n` +
+      `visivel: ${vis.join(',')||'-'}  video:${pv.paused?'off':'on'}`;
   }
 }
 
