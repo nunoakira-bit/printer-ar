@@ -333,10 +333,11 @@ async function boot(){
   // vídeo com larguras diferentes -> faixa preta e overlay deslocado.
   // Forçamos o recálculo assim que o vídeo tem dimensões reais e o mantemos
   // casado quando o viewport muda (barra do Safari, rotação).
+  const arEl = document.getElementById('ar');
   const forceResize = () => { try { mindar.resize(); } catch(_){} };
   const resizeWhenReady = (tries) => {
     const v = mindar.video;
-    if (v && v.videoWidth > 0 && container.clientWidth > 0){ forceResize(); }
+    if (v && v.videoWidth > 0 && arEl.clientWidth > 0){ forceResize(); }
     else if (tries > 0) requestAnimationFrame(() => resizeWhenReady(tries-1));
   };
   resizeWhenReady(180);
@@ -410,8 +411,11 @@ document.getElementById('start-btn').addEventListener('click', async () => {
   document.getElementById('start-overlay').style.display = 'none';
   try { await boot(); }
   catch(e){
-    document.getElementById('start-overlay').style.display = 'flex';
-    document.querySelector('#start-overlay p').textContent = 'Falhou ao iniciar: ' + e.message;
+    const ov = document.getElementById('start-overlay');
+    ov.style.display = 'flex';
+    const p = ov.querySelector('p');
+    p.textContent = 'Falhou ao iniciar: ' + (e && e.message ? e.message : e);
+    p.style.color = '#ff8a8a';
     console.error(e);
   }
 });
