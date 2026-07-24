@@ -138,6 +138,15 @@ Se o arquivo de um item ainda não existir, **o player some sozinho** e a experi
 mostrando só o nome, o mini-diagrama e a ficha. Dá para publicar com uma parte dos vídeos
 e ir completando depois, sem tocar no código.
 
+### Vídeo de abertura (EOS Suite)
+
+A tela inicial da versão de rastreio (`ecossistema-track.html`) toca um vídeo de apresentação
+da EOS Suite. Coloque-o em **`assets/eco/eos-suite.mp4`** (MP4 H.264 + AAC).
+
+Ele começa **mudo, em loop e automático** — é o que o mobile permite sem toque — e tem um
+botão **🔊 Ativar som**. Ao tocar em *Iniciar experiência* o vídeo pausa e a câmera abre.
+Enquanto o arquivo não existir, o player some sozinho e a tela inicial funciona igual.
+
 ### Ícones
 
 Já estão em `assets/eco/icons/<id>.png`, recortados direto do PDF do backdrop — são

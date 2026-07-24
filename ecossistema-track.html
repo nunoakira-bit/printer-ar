@@ -59,15 +59,25 @@
     #hint .d{ width:10px; height:10px; border-radius:50%; background:var(--y); animation:dotP 1.3s infinite; flex:none }
 
     #start-overlay{ position:fixed; inset:0; z-index:30; display:flex; flex-direction:column; align-items:center;
-      justify-content:center; text-align:center; padding:24px;
+      justify-content:center; text-align:center; padding:24px; overflow-y:auto;
       background:radial-gradient(120% 120% at 50% 0%, rgba(0,160,227,.22), transparent 60%), var(--ink2); }
     #start-overlay .eb{ font-size:12px; letter-spacing:4px; text-transform:uppercase; color:var(--acc); font-weight:800 }
-    #start-overlay h1{ font-size:2.3rem; font-weight:900; margin:6px 0 12px; letter-spacing:-1.5px; line-height:1.05 }
-    #start-overlay p{ font-size:1rem; opacity:.82; margin:0 0 12px; max-width:340px; line-height:1.55 }
-    #start-overlay .alt{ font-size:.82rem; opacity:.6; margin:22px 0 0 }
+    #start-overlay h1{ font-size:2rem; font-weight:900; margin:6px 0 14px; letter-spacing:-1.5px; line-height:1.05 }
+    #start-overlay p{ font-size:.98rem; opacity:.82; margin:0 0 10px; max-width:340px; line-height:1.5 }
+    #start-overlay .alt{ font-size:.82rem; opacity:.6; margin:18px 0 0 }
     #start-overlay .alt a{ color:var(--acc) }
+    /* vídeo de abertura sobre a EOS Suite */
+    #intro-wrap{ position:relative; width:min(86vw,440px); margin:0 0 16px; border-radius:18px;
+      overflow:hidden; background:#0d1218;
+      box-shadow:0 18px 44px rgba(0,0,0,.55), 0 0 0 1px rgba(0,160,227,.35); }
+    #intro-wrap.hidden{ display:none; }
+    #intro{ display:block; width:100%; height:auto; }
+    #intro-unmute{ position:absolute; right:10px; bottom:10px; border:0; border-radius:999px;
+      padding:8px 14px; font-size:12.5px; font-weight:800; background:var(--acc); color:#06131a;
+      display:inline-flex; align-items:center; gap:6px; cursor:pointer;
+      box-shadow:0 6px 16px rgba(0,0,0,.4); }
     #start-btn{ border:0; border-radius:999px; padding:17px 44px; font-size:1.05rem; font-weight:900; color:#0E1014;
-      background:var(--acc); box-shadow:0 10px 30px rgba(0,160,227,.45); margin-top:18px }
+      background:var(--acc); box-shadow:0 10px 30px rgba(0,160,227,.45); margin-top:14px }
     #dbg{ position:fixed; left:8px; top:8px; z-index:40; display:none; font:11px/1.4 monospace;
       background:rgba(0,0,0,.75); padding:6px 9px; border-radius:6px; white-space:pre }
   </style>
@@ -94,10 +104,14 @@
   </div></div>
 
   <div id="start-overlay">
-    <div class="eb">Grupo Printer · Catálogo 2026</div>
+    <div class="eb">Grupo Printer · EOS Suite</div>
     <h1>Ecossistema<br>da Informação</h1>
-    <p>Aponte a câmera para qualquer bolinha do painel. O vídeo aparece acima dela e um
-       pulso de energia percorre os caminhos possíveis, na própria linha impressa.</p>
+    <div id="intro-wrap" class="hidden">
+      <video id="intro" loop muted playsinline webkit-playsinline preload="auto"></video>
+      <button id="intro-unmute">🔊 Ativar som</button>
+    </div>
+    <p>Aponte a câmera para qualquer bolinha do painel: o vídeo aparece acima dela e um
+       pulso de energia percorre a linha impressa.</p>
     <button id="start-btn">Iniciar experiência</button>
     <p class="alt">Rastreio da arte, sem QR. Se falhar no seu aparelho,
        use a <a href="./ecossistema-qr.html">versão por QR code</a>.</p>
@@ -412,7 +426,24 @@ function tick(){
   }
 }
 
+/* Vídeo de abertura sobre a EOS Suite: toca mudo em loop na tela inicial
+   (autoplay mudo é o que o mobile permite). Some sozinho enquanto o arquivo
+   não existir. O som liga por toque no botão, que é gesto do usuário. */
+const INTRO_SRC = './assets/eco/eos-suite.mp4';
+const introWrap = document.getElementById('intro-wrap');
+const intro = document.getElementById('intro');
+const introUnmute = document.getElementById('intro-unmute');
+intro.addEventListener('loadeddata', () => { introWrap.classList.remove('hidden'); intro.play().catch(()=>{}); });
+intro.addEventListener('error', () => introWrap.classList.add('hidden'));
+intro.src = INTRO_SRC; intro.load();
+introUnmute.addEventListener('click', () => {
+  intro.muted = !intro.muted;
+  introUnmute.textContent = intro.muted ? '🔊 Ativar som' : '🔇 Som ligado';
+  if (!intro.muted){ intro.volume = 1; intro.play().catch(()=>{}); }
+});
+
 document.getElementById('start-btn').addEventListener('click', async () => {
+  try { intro.pause(); } catch(_){}          // libera o vídeo de abertura
   document.getElementById('start-overlay').style.display = 'none';
   try { await boot(); }
   catch(e){
