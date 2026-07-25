@@ -72,14 +72,29 @@
       box-shadow:0 18px 44px rgba(0,0,0,.55), 0 0 0 1px rgba(0,160,227,.35); }
     #intro-wrap.hidden{ display:none; }
     #intro{ display:block; width:100%; height:auto; }
-    #intro-unmute{ position:absolute; right:10px; bottom:10px; border:0; border-radius:999px;
-      padding:8px 14px; font-size:12.5px; font-weight:800; background:var(--acc); color:#06131a;
-      display:inline-flex; align-items:center; gap:6px; cursor:pointer;
-      box-shadow:0 6px 16px rgba(0,0,0,.4); }
     #start-btn{ border:0; border-radius:999px; padding:17px 44px; font-size:1.05rem; font-weight:900; color:#0E1014;
       background:var(--acc); box-shadow:0 10px 30px rgba(0,160,227,.45); margin-top:14px }
     #dbg{ position:fixed; left:8px; top:8px; z-index:40; display:none; font:11px/1.4 monospace;
       background:rgba(0,0,0,.75); padding:6px 9px; border-radius:6px; white-space:pre }
+
+    /* popup de abertura da EOS Suite: porta de entrada, exige ativar o som */
+    #eos-modal{ position:fixed; inset:0; z-index:60; display:flex; align-items:center; justify-content:center;
+      padding:24px; background:rgba(6,8,12,.74); backdrop-filter:blur(6px); }
+    #eos-modal.gone{ display:none; }
+    .eos-card{ width:min(90vw,420px); background:#F7F8FB; color:#1b2130; border-radius:22px;
+      padding:30px 26px 26px; text-align:center; box-shadow:0 30px 70px rgba(0,0,0,.55);
+      animation:eosIn .45s cubic-bezier(.2,.85,.25,1); }
+    @keyframes eosIn{ from{opacity:0; transform:translateY(18px) scale(.96)} to{opacity:1; transform:none} }
+    .eos-card img{ display:block; width:min(62vw,230px); height:auto; margin:0 auto 22px; }
+    .eos-card p{ margin:0 auto 24px; max-width:32ch; font-size:15px; line-height:1.55; color:#3a4152; }
+    .eos-card p b{ color:#1b2130; }
+    #eos-sound{ border:0; border-radius:999px; padding:16px 30px; width:100%; max-width:320px;
+      font-size:1.02rem; font-weight:900; color:#fff; cursor:pointer;
+      background:linear-gradient(135deg,#A958F0,#1829D8);
+      box-shadow:0 12px 30px rgba(41,60,190,.45); display:inline-flex; align-items:center;
+      justify-content:center; gap:9px; transition:transform .12s; }
+    #eos-sound:active{ transform:scale(.97); }
+    .eos-card small{ display:block; margin-top:14px; font-size:12px; color:#8890a0; }
   </style>
 </head>
 <body>
@@ -108,13 +123,23 @@
     <h1>Ecossistema<br>da Informação</h1>
     <div id="intro-wrap" class="hidden">
       <video id="intro" loop muted playsinline webkit-playsinline preload="auto"></video>
-      <button id="intro-unmute">🔊 Ativar som</button>
     </div>
     <p>Aponte a câmera para qualquer bolinha do painel: o vídeo aparece acima dela e um
        pulso de energia percorre a linha impressa.</p>
     <button id="start-btn">Iniciar experiência</button>
     <p class="alt">Rastreio da arte, sem QR. Se falhar no seu aparelho,
        use a <a href="./ecossistema-qr.html">versão por QR code</a>.</p>
+  </div>
+
+  <!-- porta de entrada: exige ativar o som, que autoriza o audio de todos os videos -->
+  <div id="eos-modal">
+    <div class="eos-card">
+      <img src="./assets/eco/eos-suite-logo.svg" alt="EOS Suite" />
+      <p>Bem-vindo ao <b>ecossistema da informação</b> da EOS Suite — da captura do
+         documento à preservação digital. Esta experiência tem <b>narração</b>.</p>
+      <button id="eos-sound">🔊 Ativar som e começar</button>
+      <small>O som é necessário para continuar.</small>
+    </div>
   </div>
 
 <script type="importmap">
@@ -426,20 +451,27 @@ function tick(){
   }
 }
 
-/* Vídeo de abertura sobre a EOS Suite: toca mudo em loop na tela inicial
-   (autoplay mudo é o que o mobile permite). Some sozinho enquanto o arquivo
-   não existir. O som liga por toque no botão, que é gesto do usuário. */
+/* Vídeo de abertura sobre a EOS Suite: carrega mudo por trás do popup
+   (autoplay mudo é o que o mobile permite). Some sozinho se o arquivo faltar. */
 const INTRO_SRC = './assets/eco/eos-suite.mp4';
 const introWrap = document.getElementById('intro-wrap');
 const intro = document.getElementById('intro');
-const introUnmute = document.getElementById('intro-unmute');
 intro.addEventListener('loadeddata', () => { introWrap.classList.remove('hidden'); intro.play().catch(()=>{}); });
 intro.addEventListener('error', () => introWrap.classList.add('hidden'));
 intro.src = INTRO_SRC; intro.load();
-introUnmute.addEventListener('click', () => {
-  intro.muted = !intro.muted;
-  introUnmute.textContent = intro.muted ? '🔊 Ativar som' : '🔇 Som ligado';
-  if (!intro.muted){ intro.volume = 1; intro.play().catch(()=>{}); }
+
+/* Porta de entrada (popup EOS Suite): o toque em "Ativar som" é o gesto que
+   destrava o áudio da página. A partir dele TODOS os vídeos — abertura e os
+   dos itens — tocam com som. É o único caminho para continuar. */
+const soundBtn = document.getElementById('sound-btn');
+document.getElementById('eos-sound').addEventListener('click', () => {
+  intro.muted = false; intro.volume = 1;
+  try { intro.currentTime = 0; } catch(_){}
+  intro.play().catch(()=>{});          // gesto que libera o áudio
+  pv.muted = false; pv.volume = 1;      // vídeos dos itens já autorizados
+  soundBtn.classList.remove('muted');
+  soundBtn.textContent = '🔊 Som ligado';
+  document.getElementById('eos-modal').classList.add('gone');
 });
 
 document.getElementById('start-btn').addEventListener('click', async () => {

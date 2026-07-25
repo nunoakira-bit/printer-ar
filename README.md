@@ -143,9 +143,15 @@ e ir completando depois, sem tocar no código.
 A tela inicial da versão de rastreio (`ecossistema-track.html`) toca um vídeo de apresentação
 da EOS Suite. Coloque-o em **`assets/eco/eos-suite.mp4`** (MP4 H.264 + AAC).
 
-Ele começa **mudo, em loop e automático** — é o que o mobile permite sem toque — e tem um
-botão **🔊 Ativar som**. Ao tocar em *Iniciar experiência* o vídeo pausa e a câmera abre.
-Enquanto o arquivo não existir, o player some sozinho e a tela inicial funciona igual.
+Ao abrir, um **popup da EOS Suite** (logo `assets/eco/eos-suite-logo.svg` + explicação)
+serve de porta de entrada: só há um caminho, o botão **🔊 Ativar som e começar**. Esse
+toque é o gesto que **destrava o áudio da página** — a partir dele o vídeo de abertura e
+**todos os vídeos dos itens** tocam com som, sem novo toque. O popup funciona mesmo sem o
+`eos-suite.mp4` (segue sendo a autorização de áudio).
+
+Fechado o popup, o vídeo de abertura toca com som na tela inicial. Ao tocar em *Iniciar
+experiência* ele pausa e a câmera abre. Enquanto o arquivo não existir, o player some
+sozinho e a tela inicial funciona igual.
 
 ### Ícones
 
