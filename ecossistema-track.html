@@ -154,32 +154,34 @@ import * as THREE from 'three';
 import { MindARThree } from 'https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js';
 
 /* ---------------------------------------------------------------------------
-   Conteúdo dos 14 itens (mesmo texto da versão por QR).
+   Conteúdo dos 16 itens — textos extraídos do vetor "backdrop para AR.pdf".
    --------------------------------------------------------------------------- */
 const ITEMS = {
-  doc:{name:'Documento físico',c:'#7A2140',desc:'Pilhas de papel circulando pela mesa: documentos que se perdem, informação que ninguém acha e retrabalho que ninguém mede. É onde a maioria das instituições ainda está.',li:['Sem rastreabilidade','Sem prazo definido','Sem controle de acesso']},
-  scanner:{name:'Scanners',c:'#B06FD6',desc:'Converte o acervo físico em arquivo digital com qualidade de captura adequada a cada tipo de documento.',li:['Digitalização planetária','Digitalização normal','Digitalização 3D']},
-  multi:{name:'Multifuncionais',c:'#B06FD6',desc:'Leva a captura para dentro do setor: o servidor digitaliza no equipamento que já usa, sem depender de uma central.',li:['Digitalização planetária','Digitalização normal','Digitalização 3D']},
-  computador:{name:'Computadores',c:'#5B6270',desc:'O arquivo de trabalho do usuário. É o ponto mais frágil do ciclo: o que fica só no desktop não tem backup, prazo nem auditoria.',li:['Arquivos de trabalho do usuário','Pastas locais monitoradas pelo AIR SAFE']},
-  airsafe:{name:'AIR SAFE',c:'#128FA8',desc:'Vigia as pastas do computador do usuário, detecta alterações nos arquivos e sincroniza com o Air — sem depender da disciplina de ninguém.',li:['Verifica alterações dos arquivos do usuário','Espelha as pastas locais no Air','Upload contínuo para a nuvem']},
-  print3d:{name:'Impressoras 3D',c:'#8E5FD3',desc:'Produção de peças sob demanda a partir dos arquivos do usuário, dentro do mesmo controle de saldo e autorização.',li:['Produção sob demanda','Envio direto do computador']},
-  air:{name:'Air',c:'#E8382F',desc:'O repositório único do acervo digital. Tudo que foi capturado — pelo scanner, pela multifuncional ou pelo desktop — passa a existir em um só lugar.',li:['Armazenamento em nuvem','Origem única para os demais sistemas','Base para tramitação e gestão arquivística']},
-  flow:{name:'Flow',c:'#F2B705',desc:'Põe o documento em movimento: processos, pedidos e assinaturas tramitam sobre o acervo, de forma linear ou paralela.',li:['Tramitação de processos e pedidos','Assinatura eletrônica com validade jurídica','Monitoramento das etapas em tempo real']},
-  cidadao:{name:'Flow Cidadão',c:'#F2711C',desc:'Interface de comunicação e solicitações de clientes externos com a instituição. Quem está fora entra no mesmo fluxo de quem está dentro.',li:['Solicitações de clientes externos','Acompanhamento pelo solicitante','Entrada única no fluxo institucional']},
-  siga:{name:'Siga',c:'#57C33B',desc:'Aqui o ciclo deixa de ser improviso e vira política: cada documento recebe classificação, prazo e destino previstos em norma.',li:['Plano de classificação','Captura e registro','Temporalidade','Eliminação','Gestão documental','Trilha de auditoria (eventos)']},
-  descarte:{name:'Descarte',c:'#0E7A34',desc:'O que cumpriu o prazo é eliminado com método e registro — não é jogar fora, é encerrar formalmente o ciclo de vida do documento.',li:['Fragmentação manual','Fragmentação mecânica','Pulverização','Desmagnetização','Reformatação']},
-  rdc:{name:'RDC ARQ',c:'#0E7A34',desc:'Repositório de preservação digital de longo prazo: o que é permanente fica íntegro, auditável e com os metadados arquivísticos preservados.',li:['Preservação digital de longo prazo','Garantia da integridade','Preservação dos metadados arquivísticos','Auditoria completa das operações','Gestão de empréstimos documentais']},
-  nfc:{name:'Leitores NFC',c:'#8E5FD3',desc:'Identifica quem vai imprimir e valida o saldo antes de o papel sair. A impressão deixa de ser anônima e passa a ter dono.',li:['Identificação por crachá NFC','Validação de saldo de impressão','Autorização por usuário e centro de custo']},
-  impressora:{name:'Impressoras',c:'#8E5FD3',desc:'A liberação só acontece com saldo validado. E o papel que sai daqui reentra no ciclo — agora com origem, prazo e destino conhecidos.',li:['Liberação por crédito','Impressão vinculada ao usuário','Retorno controlado ao início do ciclo']}
+  doc:{name:'Documento físico',c:'#7A2140',desc:'É onde a maioria das instituições está: pilhas de documentos perdidos, informações perdidas, desperdício.',li:['Sem rastreabilidade','Sem prazo definido','Sem controle de acesso']},
+  digitalizacao:{name:'Digitalização',c:'#B06FD6',desc:'O primeiro passo para a modernização: digitalização.',li:['Scanners de mesa','Scanners de produção','Planetários','Multifuncionais','Scanner de mapa']},
+  servidor:{name:'Servidor Printer',c:'#3C1D9E',desc:'Faz o gerenciamento dos arquivos para armazenamento ou impressão.',li:['Gerência de arquivos','Armazenamento em cloud','Envio direto para impressão']},
+  computador:{name:'Computadores',c:'#43586C',desc:'Documentos digitalizados são armazenados nos computadores locais.',li:['Armazenamento local','Monitorado pelo AIR SAFE','Envio manual para as aplicações']},
+  impressao_midias:{name:'Impressão em diferentes mídias',c:'#8E5FD3',desc:'Impressão do documento em diferentes mídias e formatos.',li:['Multifuncionais','Plotters','Térmicas','Impressora cartão']},
+  airsafe:{name:'AIR SAFE',c:'#0097B1',desc:'Monitoramento e envio dos arquivos e pastas locais para as aplicações.',li:['Transferência automática','Criação de estruturas','Preservação de hierarquia','Prevenção de duplicidade','Monitoramento personalizado']},
+  access:{name:'Access',c:'#EC008B',desc:'Controle de acessos.',li:['Perfil organizacional','Capacidade ilimitada','Segurança','Gestão em nuvem']},
+  nfc:{name:'Leitores NFC',c:'#3B7FD1',desc:'Verificação de saldo e autorização de impressão.',li:['Identificação por crachá NFC','Validação de saldo','Autorização de impressão']},
+  impressao:{name:'Impressão',c:'#8E5FD3',desc:'A volta da informação para o meio físico.',li:['Impressoras','Multifuncionais']},
+  air:{name:'Air',c:'#E8382F',desc:'Armazenamento em nuvem.',li:['Sistema em nuvem','Integração facilitada','Arquitetura flexível','Armazenamento flexível','Busca avançada','Reconhecimento óptico de caracteres (OCR)','Transferência de arquivos em massa']},
+  organizacao:{name:'Organização do arquivo',c:'#6DBE45',desc:'Organização e padronização do acervo antes da gestão arquivística.',li:['Organização dos arquivos físicos','Organização dos arquivos digitais','Padronização conforme Conarq e E-Arq','Comissão arquivística','Criação de plano de classificação','Criação de tabela de temporalidade']},
+  siga:{name:'Siga',c:'#57C33B',desc:'Gestão arquivística com tabela de temporalidade.',li:['Aplicação do plano de classificação','Captura e registro','Aplicação de temporalidade','Eliminação','Gestão documental','Trilha de auditoria (eventos)','Reconhecimento óptico de caracteres (OCR)']},
+  flow:{name:'Flow',c:'#F2B705',desc:'Tramitação digital de processos e pedidos.',li:['Tramitação de processos','Gestão ágil e digital','Controle de visibilidade','Segurança personalizada','Monitoramento inteligente','Assinaturas eletrônicas avançadas e qualificadas (ICP-Brasil)']},
+  cidadao:{name:'Flow Cidadão',c:'#F2711C',desc:'Interface de comunicação e solicitações de usuários externos com a instituição.',li:['Solicitações','Automações','Notificações','Assinaturas','Segurança','Rastreabilidade']},
+  descarte:{name:'Descarte',c:'#0E7A34',desc:'O final do ciclo da informação.',li:['Fragmentação manual','Fragmentação mecânica','Pulverização','Desmagnetização','Reformatação']},
+  rdc:{name:'RDC ARQ',c:'#038236',desc:'Guarda permanente de arquivos.',li:['Preservação digital de longo prazo','Garantia da integridade','Preservação dos metadados arquivísticos','Registro das ações de preservação','Controle de incidentes de preservação','Auditoria completa das operações','Gestão de empréstimos documentais']}
 };
 
-/* Centro de cada bolinha em pontos do backdrop.pdf */
+/* Centro de cada bolinha em pontos do "backdrop para AR.pdf" (0-2250 x 0-1875) */
 const POS = {
-  doc:{x:198,y:1007}, scanner:{x:468,y:1012}, multi:{x:452,y:1282},
-  computador:{x:510,y:625}, airsafe:{x:900,y:633}, print3d:{x:1086,y:456},
-  air:{x:961,y:1052}, flow:{x:1347,y:1046}, siga:{x:1783,y:1044},
-  cidadao:{x:1347,y:1421}, descarte:{x:1567,y:1420}, rdc:{x:1936,y:1403},
-  nfc:{x:1780,y:630}, impressora:{x:2077,y:645}
+  doc:{x:198,y:1158}, digitalizacao:{x:468,y:1163}, servidor:{x:269,y:612},
+  computador:{x:510,y:727}, impressao_midias:{x:678,y:482}, airsafe:{x:966,y:729},
+  access:{x:1398,y:452}, nfc:{x:1697,y:761}, impressao:{x:2021,y:728},
+  air:{x:962,y:1155}, organizacao:{x:1428,y:900}, siga:{x:1782,y:1150},
+  flow:{x:969,y:1530}, cidadao:{x:452,y:1561}, descarte:{x:1640,y:1527}, rdc:{x:2015,y:1500}
 };
 
 const qs = new URLSearchParams(location.search);
